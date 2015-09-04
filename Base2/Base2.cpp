@@ -23,6 +23,7 @@ int _tmain(int argc, char * argv[])
 	// Wait until user press some key
 	//waitKey(0);
 	if (argc < 2){
+		cout << "hola";
 		CrowdAnomalies cr("e:/input.txt");
 		cr.Execute();
 	}
