@@ -1,0 +1,29 @@
+﻿Build started 03/09/2015 18:14:55.
+     1>Project "D:\proyectos\Base2\Base2\Base2.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /IE:\ocv\opencv\build\include /Zi /nologo /W3 /WX- /sdl /Od /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"x64\Debug\Base2.pch" /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Base2.cpp
+         Base2.cpp
+     1>d:\proyectos\base2\base2\Support.h(62): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+     1>d:\proyectos\base2\base2\CUtil.h(59): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>d:\proyectos\base2\base2\Descriptor.h(52): warning C4244: 'initializing' : conversion from 'int' to 'float', possible loss of data
+                 d:\proyectos\base2\base2\Descriptor.h(51) : while compiling class template member function 'void OFBasedDescriptorMO<tr>::Describe(std::pair<DesvecParMat,CuboTypeCont> &,std::vector<HistoType,std::allocator<_Ty>> &)'
+                 with
+                 [
+                     tr=OFBased_Trait
+         ,            _Ty=HistoType
+                 ]
+                 d:\proyectos\base2\base2\Descriptor.h(90) : see reference to class template instantiation 'OFBasedDescriptorMO<tr>' being compiled
+                 with
+                 [
+                     tr=OFBased_Trait
+                 ]
+                 d:\proyectos\base2\base2\CrowdAnomalies.h(136) : see reference to function template instantiation 'OFBasedDescriptorBase<OFBased_Trait> *selectChildDes<OFBased_Trait>(short,std::string)' being compiled
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"D:\proyectos\Base2\x64\Debug\Base2.exe" /INCREMENTAL /NOLOGO /LIBPATH:E:\ocv\opencv\build\x64\vc12\lib opencv_ts300d.lib opencv_world300d.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\proyectos\Base2\x64\Debug\Base2.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\proyectos\Base2\x64\Debug\Base2.lib" /MACHINE:X64 x64\Debug\Base2.obj
+         x64\Debug\stdafx.obj
+         Base2.vcxproj -> D:\proyectos\Base2\x64\Debug\Base2.exe
+     1>Done Building Project "D:\proyectos\Base2\Base2\Base2.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:09.43
