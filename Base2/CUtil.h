@@ -46,7 +46,8 @@ void ptr_mostrar(t a, int tam, std::ostream &os = std::cout)
 //---------------------------------------------------------------------------
 //insert zeros into the front to get better renaming
 //---------------------------------------------------------------------------
-static int num_dig(int num)
+template <class t>
+static t num_dig(t num)
 {
 	int res = 0;
 	for (; num > 0; ++res)
@@ -56,7 +57,7 @@ static int num_dig(int num)
 std::string insert_numbers(std::size_t innumber, std::size_t finaln, char token = '0')
 {
 	std::stringstream digits;
-	for (std::size_t i = num_dig(finaln) - num_dig(innumber); i >= 0; --i)
+	for (auto i = num_dig(finaln) - num_dig(innumber); i >= 0; --i)
 		digits << token;
 	digits << innumber;
 	return digits.str();

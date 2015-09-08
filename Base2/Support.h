@@ -106,18 +106,19 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 //===========================================
 //heritance for 
 template <class t>
-void vectorMat2YML(std::vector<t> &vec, std::string dest)
+void vectorMat2YML(std::vector<t> &vec, std::string dest, std::string token)
 {
 	int cont = 0;
 	FileStorage fs(dest, FileStorage::WRITE);
+	fs << "CuboidNumber" << (int)vec.size();
 	for (auto & item : vec)
 	{
 		std::stringstream strcub;
-		strcub << "cuboid" << cont++;
+		strcub << token << cont++;
 		fs << strcub.str() << item;
 	}
-	fs.release();
 }
 
-
+//-------------------------------------------
+//comparisson
 #endif 

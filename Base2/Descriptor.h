@@ -4,14 +4,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv/cv.h"
 #include <type_traits>
-//==================================================================
-//main typedefs
-typedef std::pair< cv::Mat_<float>, cv::Mat_<float> >	DesparMat;
-typedef std::vector<DesparMat>							DesvecParMat;
-typedef std::vector<cutil_grig_point>					CuboTypeCont;
-typedef cv::Mat_<float>									HistoType;
-typedef std::pair<DesvecParMat, CuboTypeCont>			DesInData;	//input data type
-typedef std::vector<HistoType>							DesOutData;//output data type
+
 ////////////////////////////////////////////////////////////////////
 //==================================================================
 //struct base for magnitude orientation descriptor
@@ -34,14 +27,23 @@ struct OFBasedDescriptorBase
 	}
 	virtual void Describe(trDesInData &, trDesOutData &) = 0;
 };
-//===================================================================
-
+//==================================================================
+//==================================================================
+//main typedefs
+typedef std::pair< cv::Mat_<float>, cv::Mat_<float> >	DesparMat;
+typedef std::vector<DesparMat>							DesvecParMat;
+typedef std::vector<cutil_grig_point>					CuboTypeCont;
+typedef cv::Mat_<float>									HistoType;
+typedef std::pair<DesvecParMat, CuboTypeCont>			DesInData;	//input data type
+typedef std::vector<HistoType>							DesOutData;//output data type
+//trait for MO descriptor
 struct OFBased_Trait
 {
 	typedef DesInData	trDesInData;
 	typedef DesOutData	trDesOutData;
 };
-
+//==================================================================
+//descriptor magnitude orientation  
 template <class tr>
 struct OFBasedDescriptorMO : public OFBasedDescriptorBase<tr>
 {
@@ -49,9 +51,9 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase<tr>
 	typedef typename  tr::trDesOutData	trDesoutData;
 	virtual void Describe(trDesInData & in, trDesOutData & out)
 	{
-		float	binRange = 360 / _orientNumBin,
-				binVelozRange = _maxMagnitude / (float)_magnitudeBin;
-		int		cubPos = 0;
+		double	binRange		= 360 / _orientNumBin,
+				binVelozRange	= _maxMagnitude / (float)_magnitudeBin;
+		int		cubPos			= 0;
 		for (auto & cuboid : in.second ) //for each cuboid
 		{
 			HistoType histogram(1, _orientNumBin * (_magnitudeBin + 1));
