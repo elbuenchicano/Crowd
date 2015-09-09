@@ -22,5 +22,6 @@ opencv.props
 Temp/
 GeneratedFiles/
 ipch/
-Base2/**/x64/
+Base2/**/Debug/*.log
+Base2/**/Debug/*.obj
 x64/
