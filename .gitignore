@@ -22,14 +22,9 @@ opencv.props
 Temp/
 GeneratedFiles/
 ipch/
-Base2/**/Debug/*.log
-Base2/**/Debug/*.obj
 x64/
 Base2.sdf
 Base2.v12.suo
 x64/Debug/Base2.exe
 *.swp
-Base2/Debug/
 Base2/**/Debug/
-Base2/x64/Debug/*
-
