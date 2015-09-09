@@ -22,5 +22,5 @@ opencv.props
 Temp/
 GeneratedFiles/
 ipch/
-Base2/x64/
+Base2/**/x64/
 x64/
