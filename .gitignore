@@ -25,3 +25,6 @@ ipch/
 Base2/**/Debug/*.log
 Base2/**/Debug/*.obj
 x64/
+Base2.sdf
+Base2.v12.suo
+x64/Debug/Base2.exe
