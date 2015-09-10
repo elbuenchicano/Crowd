@@ -13,7 +13,7 @@
 using namespace std;
 using namespace cv;
 
-static void determinePatterns(Mat & train, Mat & test, vector<bool> & out);
+static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr);
 //=================================================================
 //CrowdAnomalies main class of the project.........................
 class CrowdAnomalies
@@ -35,10 +35,12 @@ class CrowdAnomalies
 	void	Precompute_OF();
 	void	Feat_Extract();
 	void	Test_Offline();
+	void	Validar();
 
 	//SUPPORT FUNCTIONS.................................................
 	void	CommonLoadInfo(cutil_file_cont &, string &, char *, 
 						   vector<cutil_grig_point> &, short &, short &);
+
 public:
 	CrowdAnomalies(string featf);
 	~CrowdAnomalies(){}
@@ -80,6 +82,10 @@ void CrowdAnomalies::Execute()
 		}
 		case 2:{ 
 		    Feat_Extract();
+			break;
+		}
+		case 3:{
+			Test_Offline();
 			break;
 		}
 		case 10:{//for training
@@ -250,7 +256,9 @@ void CrowdAnomalies::Test_Offline()
 	Mat			train,
 				test;
 	short		cuboidnumber;
+	float		threshold;
 	vector<Mat_<float> >	info_out;
+	
 	
 	//-------------------------------------------------------------
 	//load info....................................................
@@ -258,18 +266,19 @@ void CrowdAnomalies::Test_Offline()
 	info["main_test_of_test_file"] >> testFile;
 	info["main_test_of_train_file"] >> trainFile;
 	info["main_test_of_output"] >> file_out;
-	
+	info["main_test_of_threshold"] >> threshold;
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
 	FileStorage trainfs(trainFile, FileStorage::READ);
 
 	trainfs["CuboidNumber"] >> cuboidnumber;
+	vector<vector<bool> > finaloutvec(cuboidnumber);
 	for (auto i = 0; i < cuboidnumber; ++i){
 		stringstream keyphrase;
 		keyphrase << "cuboid" << i;
 		trainfs[keyphrase.str()] >> train;
 		testfs[keyphrase.str()] >> test;
-		
+		determinePatterns(train, test, finaloutvec[i], threshold);
 	}
 
 	//-------------------------------------------------------------
@@ -298,19 +307,30 @@ void CrowdAnomalies::CommonLoadInfo(cutil_file_cont & file_list, string & direct
 }
 //------------------------------------------------------------------------
 //compare patterns
-
-static bool comparePatterns(Mat & train, Mat & test)
+//
+static double EuclideanDistance(Mat_<float>  & vec1, Mat_<float> & vec2)
 {
-	for (auto i = 0; i < train.cols; ++i)
-	{
-		
-	}
+	double dst = 0;
+	for (auto i = 0; i < vec1.cols; ++i)
+		dst += (vec2(0, i) - vec1(0, i)) * (vec2(0, i) - vec1(0, i)); 
+	return sqrt(dst);
 }
 
-static void determinePatterns(Mat & train, Mat & test, vector<bool> & out)
+static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr)
 {
+	out.clear();
+	out.resize(test.rows);
 	for (auto i = 0; i < test.rows; ++i)
 	{
-
+		out[i] = false;
+		Mat_<float> pattern = test.row(i);
+		for (int j = 0; j < train.rows; ++i)
+		{
+			Mat_<float> trainPat = train.row(j);
+			if (EuclideanDistance(trainPat, pattern) < thr){
+				out[i] = true;
+				break;
+			}
+		}
 	}
 }
