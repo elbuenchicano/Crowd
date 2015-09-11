@@ -35,12 +35,12 @@ class CrowdAnomalies
 	void	Precompute_OF();
 	void	Feat_Extract();
 	void	Test_Offline();
-	void	Validar();
+	void	GTValidation();
 
 	//SUPPORT FUNCTIONS.................................................
-	void	CommonLoadInfo(cutil_file_cont &, string &, char *, 
-						   vector<cutil_grig_point> &, short &, short &);
-
+	void	CommonLoadInfo (cutil_file_cont &, string &, string, const char *, 
+						    vector<cutil_grig_point> &, short &, short &);
+	void	Graphix	(vector<vector<bool> > &);
 public:
 	CrowdAnomalies(string featf);
 	~CrowdAnomalies(){}
@@ -160,7 +160,7 @@ void CrowdAnomalies::Extract_Info()
 	FileStorage info(_mainfile, FileStorage::READ);
 	info["main_extract_info_dir"] >> directory;
 	info["main_extract_infofile"] >> file_out;
-	CommonLoadInfo(file_list, directory, "of.yml", grid, rows, cols);
+	CommonLoadInfo(file_list, directory, "angle", "of.yml", grid, rows, cols);
 
 	//-------------------------------------------------------------
 	vector<Mat_<float> > vecMag(file_list.size());
@@ -220,7 +220,7 @@ void CrowdAnomalies::Feat_Extract()
 	FileStorage info(_mainfile, FileStorage::READ);
 	info["main_feat_extract_dir"] >> directory;
 	info["main_feat_extract_output"] >> file_out;
-	CommonLoadInfo(file_list, directory, "of.yml", grid, rows, cols);
+	CommonLoadInfo(file_list, directory, "angle", "of.yml", grid, rows, cols);
 
 	//-------------------------------------------------------------
 	OFBasedDescriptorBase<OFBased_Trait>* descrip = selectChildDes<OFBased_Trait>(_main_descriptor_type, _mainfile);
@@ -252,7 +252,8 @@ void CrowdAnomalies::Test_Offline()
 {
 	string		testFile,
 				trainFile,
-				file_out;
+				file_out,
+				flag;
 	Mat			train,
 				test;
 	short		cuboidnumber;
@@ -267,6 +268,7 @@ void CrowdAnomalies::Test_Offline()
 	info["main_test_of_train_file"] >> trainFile;
 	info["main_test_of_output"] >> file_out;
 	info["main_test_of_threshold"] >> threshold;
+	info["main_test_of_graphix_flag"] >> flag;
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
 	FileStorage trainfs(trainFile, FileStorage::READ);
@@ -280,7 +282,9 @@ void CrowdAnomalies::Test_Offline()
 		testfs[keyphrase.str()] >> test;
 		determinePatterns(train, test, finaloutvec[i], threshold);
 	}
-
+	if (flag != ""){
+		Graphix(finaloutvec);
+	}
 	//-------------------------------------------------------------
 	
 	
@@ -293,12 +297,16 @@ void CrowdAnomalies::Test_Offline()
 
 //simple repettive code for principal functions
 void CrowdAnomalies::CommonLoadInfo(cutil_file_cont & file_list, string & directory,
-		   char * token, vector<cutil_grig_point> & grid, short &rows, short  &cols)
+string key, const char * token, vector<cutil_grig_point> & grid, short &rows, short  &cols)
 {
 	Mat			img;
 	list_files_all(file_list, directory.c_str(), token);
-	FileStorage imgfs(file_list.front(), FileStorage::READ);
-	imgfs["angle"] >> img;
+	if(key=="")
+		img =  imread(file_list.front());
+	else{
+		FileStorage imgfs(file_list.front(), FileStorage::READ);
+		imgfs[key] >> img;
+	}
 	rows = img.rows;
 	cols = img.cols;
 	grid = grid_generator(rows, cols,
@@ -324,7 +332,7 @@ static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float
 	{
 		out[i] = false;
 		Mat_<float> pattern = test.row(i);
-		for (int j = 0; j < train.rows; ++i)
+		for (int j = 0; j < train.rows; ++j)
 		{
 			Mat_<float> trainPat = train.row(j);
 			if (EuclideanDistance(trainPat, pattern) < thr){
@@ -332,5 +340,53 @@ static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float
 				break;
 			}
 		}
+	}
+}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//==========================================================================
+//draw rectangles
+void ShowAnomaly(cv::Mat & frm, int pos, std::vector<std::vector<bool> > & an, 
+				 std::vector<cutil_grig_point> & grid)
+{
+	for (std::size_t i = 0; i < an.size(); ++i)
+	{
+		cv::Scalar color = an[i][pos] ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
+		cv::rectangle(	frm,
+					cv::Point(grid[i].yi, grid[i].xi),
+					cv::Point(grid[i].yf, grid[i].xf), 
+					color );
+	}
+}
+//
+void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
+{	
+	string	directory,
+			file_extension,
+			directory_out,
+			token_out;
+	short	rows,
+			cols;
+	cutil_file_cont				file_list;
+	vector<cutil_grig_point>	grid;
+
+	FileStorage fs(_mainfile, FileStorage::READ);
+	fs["support_graphix_ext"] >> file_extension;
+	fs["support_graphix_dir"] >> directory;
+	fs["support_graphix_out_dir"] >> directory_out;
+	fs["support_graphix_out_token"] >> token_out;
+
+	//=====================================================================
+	CommonLoadInfo(file_list, directory, "", file_extension.c_str(), grid, rows, cols);
+	int step = _main_frame_interval * _main_frame_range;
+	for (size_t i = step, pos = 0; i < file_list.size() && 
+							       pos < rpta[0].size(); i+= step, ++pos)
+	{
+		stringstream strout;
+		strout << directory_out << "/" << token_out << pos << "." <<file_extension;
+		Mat img = imread(file_list[i]);
+		ShowAnomaly(img, pos, rpta, grid);
+		imwrite(strout.str(), img);
 	}
 }
