@@ -125,6 +125,7 @@ void CrowdAnomalies::Precompute_OF()
 	list_files_all(file_list, directory.c_str(), file_extension.c_str());
 	for (auto & fil : file_list)
 	{
+
 		Mat	img	= imread(fil);
 		image_vector.push_back(img);
 	}
