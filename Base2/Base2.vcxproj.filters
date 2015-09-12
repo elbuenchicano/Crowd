@@ -27,16 +27,16 @@
     <ClInclude Include="CrowdAnomalies.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Support.h">
+    <ClInclude Include="CUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CUtil.h">
+    <ClInclude Include="Descriptor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="dirent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Descriptor.h">
+    <ClInclude Include="Support.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
