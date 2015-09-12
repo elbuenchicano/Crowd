@@ -13,7 +13,7 @@
 using namespace std;
 using namespace cv;
 
-static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr);
+static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr, int type = 1);
 //=================================================================
 //CrowdAnomalies main class of the project.........................
 class CrowdAnomalies
@@ -35,7 +35,7 @@ class CrowdAnomalies
 	void	Precompute_OF();
 	void	Feat_Extract();
 	void	Test_Offline();
-	void	GTValidation();
+	void	GTValidation(vector<vector<bool> > &);
 
 	//SUPPORT FUNCTIONS.................................................
 	void	CommonLoadInfo (cutil_file_cont &, string &, string, const char *, 
@@ -73,11 +73,11 @@ void CrowdAnomalies::Execute()
 	switch (op)
 	{
 		case 0:{
-			Precompute_OF();
+			
 			break;
 		}
 		case 1:{
-			Extract_Info();
+			Precompute_OF();
 			break;
 		}
 		case 2:{ 
@@ -258,7 +258,8 @@ void CrowdAnomalies::Test_Offline()
 	string		testFile,
 				trainFile,
 				file_out,
-				flag;
+				flagGraphix,
+				flagGtval;
 	Mat			train,
 				test;
 	short		cuboidnumber;
@@ -273,7 +274,8 @@ void CrowdAnomalies::Test_Offline()
 	info["main_test_of_train_file"] >> trainFile;
 	info["main_test_of_output"] >> file_out;
 	info["main_test_of_threshold"] >> threshold;
-	info["main_test_of_graphix_flag"] >> flag;
+	info["main_test_of_graphix_flag"] >> flagGraphix;
+	info["main_test_of_gtvalidate_flag"] >> flagGtval;
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
 	FileStorage trainfs(trainFile, FileStorage::READ);
@@ -287,12 +289,43 @@ void CrowdAnomalies::Test_Offline()
 		testfs[keyphrase.str()] >> test;
 		determinePatterns(train, test, finaloutvec[i], threshold);
 	}
-	if (flag == "true"){
+	if (flagGtval == "true"){
+		GTValidation(finaloutvec);
+	}
+	if (flagGraphix == "true"){
 		Graphix(finaloutvec);
 	}
-	//-------------------------------------------------------------
+	//------------------------------------------------------------
 	
 	
+}
+/////////////////////////////////////////////////////////////////////////
+//validation function with GT
+void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta)
+{
+	string	directory,
+			token;
+	short	rows, 
+			cols;
+
+	//-------------------------------------------------------------------
+	cutil_file_cont				file_list;
+	vector<cutil_grig_point>	grid;
+	
+	//-------------------------------------------------------------------
+	//load info..........................................................
+	FileStorage info(_mainfile, FileStorage::READ);
+	info["main_gtvalidation_dir"] >> directory;
+	info["main_gtvalidation_token"] >> token;
+	CommonLoadInfo(file_list, directory, "", token.c_str(), grid, rows, cols);
+
+	//-------------------------------------------------------------------
+	int step = _main_frame_interval * _main_frame_range;
+	for (size_t i = step-1, pos = 0; i < file_list.size() && 
+							       pos < rpta[0].size(); i+= step, ++pos)
+	{
+		
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -319,7 +352,7 @@ string key, const char * token, vector<cutil_grig_point> & grid, short &rows, sh
 		_main_cuboid_over_width, _main_cuboid_over_height);
 }
 //------------------------------------------------------------------------
-//compare patterns
+//compare patterns using euclidean distance
 //
 static double EuclideanDistance(Mat_<float>  & vec1, Mat_<float> & vec2)
 {
@@ -329,10 +362,8 @@ static double EuclideanDistance(Mat_<float>  & vec1, Mat_<float> & vec2)
 	return sqrt(dst);
 }
 
-static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr)
+static void SimpleDistance(Mat & train, Mat & test, vector<bool> & out, float thr)
 {
-	out.clear();
-	out.resize(test.rows);
 	for (auto i = 0; i < test.rows; ++i)
 	{
 		out[i] = false;
@@ -347,8 +378,12 @@ static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float
 		}
 	}
 }
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
+static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr, int type)
+{
+	out.clear();
+	out.resize(test.rows);
+	SimpleDistance(train, test, out, thr);
+}
 ////////////////////////////////////////////////////////////////////////////////
 //==========================================================================
 //draw rectangles

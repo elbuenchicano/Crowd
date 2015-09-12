@@ -127,8 +127,8 @@ void vectorMat2YML(std::vector<t> &vec, std::string dest, std::string token)
 }
 
 //-------------------------------------------
-
-
+////////////////////////////////////////////////////////////////////////////////
+//seting function for input file and script build
 
 
 #endif 
