@@ -57,7 +57,7 @@ static t num_dig(t num)
 std::string insert_numbers(std::size_t innumber, std::size_t finaln, char token = '0')
 {
 	std::stringstream digits;
-	for (auto i = num_dig(finaln) - num_dig(innumber); i >= 0; --i)
+	for (auto i = num_dig(finaln) - num_dig(innumber); i > 0; --i)
 		digits << token;
 	digits << innumber;
 	return digits.str();

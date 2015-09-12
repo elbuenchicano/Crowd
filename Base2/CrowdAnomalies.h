@@ -229,15 +229,16 @@ void CrowdAnomalies::Feat_Extract()
 	//-------------------------------------------------------------
 	OFBasedDescriptorBase<OFBased_Trait>* descrip = selectChildDes<OFBased_Trait>(_main_descriptor_type, _mainfile);
 	DesOutData		vecOutput(grid.size());
-	for (size_t i = _main_frame_range - 1; i < file_list.size(); i += _main_frame_range)
+	size_t			step = _main_frame_range-1;
+	for (size_t i = step - 1; i < file_list.size(); i += step)
 	{
-		DesvecParMat	temporalset(_main_frame_range);
+		DesvecParMat	temporalset(step);
 		DesInData		input;
-		for (int j = 0; j < _main_frame_range; ++j)
+		for (int j = 0; j < step; ++j)
 		{
 			FileStorage imgfs(file_list[i - j], FileStorage::READ);
-			imgfs["angle"] >> temporalset[_main_frame_range - j - 1].first;
-			imgfs["magnitude"] >> temporalset[_main_frame_range - j - 1].second;
+			imgfs["angle"] >> temporalset[step - j - 1].first;
+			imgfs["magnitude"] >> temporalset[step - j - 1].second;
 		}
 		input.first = temporalset;
 		input.second = grid;
@@ -286,7 +287,7 @@ void CrowdAnomalies::Test_Offline()
 		testfs[keyphrase.str()] >> test;
 		determinePatterns(train, test, finaloutvec[i], threshold);
 	}
-	if (flag != ""){
+	if (flag == "true"){
 		Graphix(finaloutvec);
 	}
 	//-------------------------------------------------------------
@@ -384,7 +385,7 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 	//=====================================================================
 	CommonLoadInfo(file_list, directory, "", file_extension.c_str(), grid, rows, cols);
 	int step = _main_frame_interval * _main_frame_range;
-	for (size_t i = step, pos = 0; i < file_list.size() && 
+	for (size_t i = step-1, pos = 0; i < file_list.size() && 
 							       pos < rpta[0].size(); i+= step, ++pos)
 	{
 		stringstream strout;
