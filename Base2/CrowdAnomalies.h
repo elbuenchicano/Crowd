@@ -364,7 +364,9 @@ void ShowAnomaly(cv::Mat & frm, int pos, std::vector<std::vector<bool> > & an,
 					color );
 	}
 }
-//
+////////////////////////////////////////////////////////////////////////////////
+//Drwaing anomalies function 
+//Req: param : vector vector rptas (anommaly or not)
 void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 {	
 	string	directory,
