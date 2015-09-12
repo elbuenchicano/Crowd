@@ -69,10 +69,10 @@ static inline void VecDesp2Mat(std::vector<cv::Point2f> &vecPoints, std::vector<
 
 void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 {
-	assert(in.size()>2);
-	std::vector<cv::Point2f> points[2], basePoints;
+	assert(in.size()>1);
+	std::vector<cv::Point2f> pointsprev, pointsnext, basePoints;
 	std::vector<uchar>		status;
-	std::vector<float>		err;
+	cv::Mat					err;
 	cv::Size				winSize(31, 31);
 	cv::TermCriteria		termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 20, 0.3);
 	int						rows,
@@ -80,17 +80,17 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 	//.......................................................
 	rows = in[0].rows;
 	cols = in[0].cols;
-	for (int i = 0; i < (int)in.size() - 1; ++i){
-		FillPointsOriginal(points[0], in[i + 1], in[i]);
+	for (size_t i = 0; i < in.size() - 1; ++i){
+		FillPointsOriginal(pointsprev, in[i + 1], in[i]);
 
 		cv::Mat angles(rows, cols, CV_32FC1, cvScalar(0.));
 		cv::Mat magni(rows, cols, CV_32FC1, cvScalar(0.));
 		OFparMat data;
 		data.first	= angles;
 		data.second = magni;
-		cv::calcOpticalFlowPyrLK(in[i], in[i + 1], points[0], points[1],
+		cv::calcOpticalFlowPyrLK(in[i], in[i + 1], pointsprev, pointsnext,
 							 	 status, err, winSize, 3, termcrit, 0, 0.001);
-		VecDesp2Mat(points[1], points[0], data);
+		VecDesp2Mat(pointsnext, pointsprev, data);
 
 		/*cv::Mat sc = in[0];
 		for (auto &p : points[0]){
@@ -101,6 +101,10 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 		}/**/
 		out.push_back(data);
 	}
+	
+	basePoints.clear();
+
+
 }
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

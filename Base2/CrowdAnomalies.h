@@ -123,14 +123,17 @@ void CrowdAnomalies::Precompute_OF()
 	_fs["main_precompute_of_out"] >> directory_out;
 	//.............................................................
 	list_files_all(file_list, directory.c_str(), file_extension.c_str());
-	for (auto & fil : file_list)
+	for (size_t i = 1; i <= file_list.size(); i+= _main_frame_interval)
 	{
-
-		Mat	img	= imread(fil);
+		Mat	img	= imread(file_list[i-1]);
 		image_vector.push_back(img);
+		if (i % _main_frame_range == 0)
+		{
+			oflow->compute(image_vector, of_out);
+			image_vector.clear();
+		}
 	}
-	oflow->compute(image_vector, of_out);
-	for (size_t i = 0; i < of_out.size(); i += _main_frame_interval)
+	for (size_t i = 0; i < of_out.size(); ++i)
 	{
 		stringstream outfile;
 		outfile << directory_out<< "/opticalflow_" << insert_numbers(i+1, of_out.size()) << "of.yml";
