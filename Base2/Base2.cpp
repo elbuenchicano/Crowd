@@ -7,14 +7,30 @@
 
 int _tmain(int argc, char * argv[])
 {
-	if (argc < 2){
+	switch(argc){
+	case 1:
+		{
+		cout << "Case 1:"<<endl;
 		CrowdAnomalies cr("e:/crowdb2/input.txt");
-		//CrowdAnomalies cr("e:/input.txt");
 		cr.Execute();
-	}
-	else{
+		break;
+		}
+	case 2:
+		{
+		cout << "Case 2:"<<endl;
+		cout << argv[1]<<endl;
 		CrowdAnomalies cr(argv[1]);
 		cr.Execute();
+		break;
+		}
+	case 3:
+		{
+		string token = argv[1];
+		if (token == "-build")
+		{
+
+		}
+		}
 	}
 	return 0;
 }

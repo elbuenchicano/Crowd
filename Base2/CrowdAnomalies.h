@@ -10,6 +10,9 @@
 #include "Support.h"
 #include "CUtil.h"
 #include "Descriptor.h"
+#include <queue>
+#include <assert.h>
+
 using namespace std;
 using namespace cv;
 
@@ -38,9 +41,13 @@ class CrowdAnomalies
 	void	GTValidation(vector<vector<bool> > &);
 
 	//SUPPORT FUNCTIONS.................................................
-	void	CommonLoadInfo (cutil_file_cont &, string &, string, const char *, 
-						    vector<cutil_grig_point> &, short &, short &);
-	void	Graphix	(vector<vector<bool> > &);
+	void	CommonLoadInfo	( cutil_file_cont &, string &, string, const char *, 
+						      vector<cutil_grig_point> &, short &, short & );
+	bool	CommonLoadInfo	( DirectoryNode *, string, const char *,
+							  vector<cutil_grig_point> &, short &, short & );
+	void	Graphix			( vector<vector<bool> > & );
+	void	DescribeSeq		( DirectoryNode &, vector<cutil_grig_point> &, Mat &,
+							  string &, string & );
 public:
 	CrowdAnomalies(string featf);
 	~CrowdAnomalies(){}
@@ -55,13 +62,13 @@ public:
 CrowdAnomalies::CrowdAnomalies(string featf){
 	_mainfile = featf;
 	_fs = FileStorage(featf, FileStorage::READ);
-	_fs["main_frame_interval"] >> _main_frame_interval;
-	_fs["main_frame_range"] >> _main_frame_range;
-	_fs["main_cuboid_width"] >> _main_cuboid_width;
-	_fs["main_cuboid_height"] >> _main_cuboid_height;
-	_fs["main_cuboid_over_width"] >> _main_cuboid_over_width;
-	_fs["main_cuboid_over_height"] >> _main_cuboid_over_height;
-	_fs["main_descriptor_type"] >> _main_descriptor_type;
+	_fs["main_frame_interval"]		>> _main_frame_interval;
+	_fs["main_frame_range"]			>> _main_frame_range;
+	_fs["main_cuboid_width"]		>> _main_cuboid_width;
+	_fs["main_cuboid_height"]		>> _main_cuboid_height;
+	_fs["main_cuboid_over_width"]	>> _main_cuboid_over_width;
+	_fs["main_cuboid_over_height"]	>> _main_cuboid_over_height;
+	_fs["main_descriptor_type"]		>> _main_descriptor_type;
 }
 
 //=================================================================
@@ -213,7 +220,9 @@ void CrowdAnomalies::Extract_Info()
 void CrowdAnomalies::Feat_Extract()
 {
 	string		directory,
-				file_out;
+				dir_out,
+				token,
+				token_out;
 	short		rows, 
 				cols;
 	cutil_file_cont				file_list;
@@ -222,29 +231,31 @@ void CrowdAnomalies::Feat_Extract()
 	//-------------------------------------------------------------
 	//load info....................................................
 	FileStorage info(_mainfile, FileStorage::READ);
-	info["main_feat_extract_dir"] >> directory;
-	info["main_feat_extract_output"] >> file_out;
-	CommonLoadInfo(file_list, directory, "angle", "of.yml", grid, rows, cols);
+	info["main_feat_extract_dir"]		>> directory;
+	info["main_feat_extract_output"]	>> dir_out;
+	info["main_feat_extract_token"]		>> token;
+	info["main_feat_extract_single_token"]		>> token_out;
+	
+	DirectoryNode	root(directory);
+	list_files_all_tree(&root, token.c_str());
+	queue<DirectoryNode *> nodelist;
 
-	//-------------------------------------------------------------
-	OFBasedDescriptorBase<OFBased_Trait>* descrip = selectChildDes<OFBased_Trait>(_main_descriptor_type, _mainfile);
-	DesOutData		vecOutput(grid.size());
-	size_t			step = _main_frame_range-1;
-	for (size_t i = step - 1; i < file_list.size(); i += step)
+	assert(CommonLoadInfo(&root, "angle", token.c_str(), grid, rows, cols));
+	
+	//..........................................................................
+	Mat		mainOut;
+	for (nodelist.push(&root); !nodelist.empty();)
 	{
-		DesvecParMat	temporalset(step);
-		DesInData		input;
-		for (int j = 0; j < step; ++j)
-		{
-			FileStorage imgfs(file_list[i - j], FileStorage::READ);
-			imgfs["angle"] >> temporalset[step - j - 1].first;
-			imgfs["magnitude"] >> temporalset[step - j - 1].second;
+		auto current = nodelist.front();
+		nodelist.pop();
+		
+		for (auto & currentSon : current->_sons)
+			nodelist.push(currentSon);
+		
+		if (current->_listFile.size()){
+			DescribeSeq(*current, grid, mainOut, dir_out, token_out);
 		}
-		input.first = temporalset;
-		input.second = grid;
-		descrip->Describe(input, vecOutput);
 	}
-	vectorMat2YML< Mat_<float> >(vecOutput, file_out, string("cuboid"));
 }
 //==================================================================
 //Test using precomputed histograms.................................
@@ -354,13 +365,6 @@ string key, const char * token, vector<cutil_grig_point> & grid, short &rows, sh
 //------------------------------------------------------------------------
 //compare patterns using euclidean distance
 //
-static double EuclideanDistance(Mat_<float>  & vec1, Mat_<float> & vec2)
-{
-	double dst = 0;
-	for (auto i = 0; i < vec1.cols; ++i)
-		dst += (vec2(0, i) - vec1(0, i)) * (vec2(0, i) - vec1(0, i)); 
-	return sqrt(dst);
-}
 
 static void SimpleDistance(Mat & train, Mat & test, vector<bool> & out, float thr)
 {
@@ -371,7 +375,7 @@ static void SimpleDistance(Mat & train, Mat & test, vector<bool> & out, float th
 		for (int j = 0; j < train.rows; ++j)
 		{
 			Mat_<float> trainPat = train.row(j);
-			if (EuclideanDistance(trainPat, pattern) < thr){
+			if (supp_euclidean_distance(trainPat, pattern) < thr){
 				out[i] = true;
 				break;
 			}
@@ -431,4 +435,74 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 		ShowAnomaly(img, pos, rpta, grid);
 		imwrite(strout.str(), img);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+bool CrowdAnomalies::CommonLoadInfo ( DirectoryNode *root, string key, const char * token,
+	vector<cutil_grig_point> & grid, short &rows, short  &cols)
+{
+	Mat	img;
+	queue<DirectoryNode *>  que;
+	for (que.push(root); !que.empty();){
+		auto current = que.front();
+		que.pop();
+		if (current->_listFile.size()){
+			if (key == "")
+				img = imread(current->_listFile.front());
+			else{
+				FileStorage imgfs(current->_listFile.front(), FileStorage::READ);
+				imgfs[key] >> img;
+			}
+			rows = img.rows;
+			cols = img.cols;
+			grid = grid_generator(rows, cols,
+				_main_cuboid_width, _main_cuboid_height,
+				_main_cuboid_over_width, _main_cuboid_over_height);
+			return true;
+		}
+		for (auto & currentSon : current->_sons)
+			que.push(currentSon);
+	}
+	return false;
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//this function describes precomputed of images extracted from video////////////
+void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_point> & grid, 
+									  Mat & mainOut, string & outDir,string & outToken)
+{
+	cout << current._label;
+	OFBasedDescriptorBase * descrip = selectChildDes(_main_descriptor_type, _mainfile);
+	Trait_M::DesOutDataMag	vecOutput(grid.size());
+	
+	size_t			step = _main_frame_range - 1;
+	Trait_M::vecMatMag		temporalset(step);
+	Trait_M::DesInDataMag	input;
+	input.second = grid;
+	
+	for (size_t i = step - 1; i < current._listFile.size(); i += step)
+	{
+		for (int j = 0; j < step; ++j)
+		{
+			FileStorage imgfs(current._listFile[i - j], FileStorage::READ);
+			imgfs["magnitude"] >> temporalset[step - j - 1];
+		}
+		input.first = temporalset;
+		descrip->Describe(&input, &vecOutput);
+	}
+	Mat Descriptor;
+	for (auto & cub : vecOutput)
+		Descriptor.push_back(cub);
+	
+	//mainOut.push_back(videoDescriptor);
+	string path = outDir + "/" + cutil_LastName(current._label) + outToken;
+
+	FileStorage fs(path , FileStorage::WRITE);
+	fs << "OriginalPath"	<< ((current._father) ? current._father->_label : "Root");
+	fs << "Descriptors"		<< Descriptor;
+		
+	cout << " Des OK\n";
+	delete descrip;/**/
 }

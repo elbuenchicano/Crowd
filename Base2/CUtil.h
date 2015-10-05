@@ -29,7 +29,7 @@ bool	cmpStrNum(const std::string &a, const std::string &b);
 bool cmpStrNum(const std::string &a, const std::string &b)
 {
 	if (a.size() == b.size())return a < b;
-	if (a.size() < b.size() )return true;
+	if (a.size() < b.size())return true;
 	return false;
 }
 //---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ void ptr_mostrar(t a, int tam, std::ostream &os = std::cout)
 {
 	for (int i = 0; i < tam; i++)
 	{
-		os << a[i] <<" ";
+		os << a[i] << " ";
 	}
 	os << endl;
 }
@@ -76,14 +76,14 @@ typedef cuboid_dim cutil_grig_point;
 //ov_h = overlap_height
 std::vector<cutil_grig_point> grid_generator(int w, int h, int cw, int ch, int ov_w, int ov_h)
 {
-	int wfin = w - cw,
-		hfin = h - ch;
+	int wfin = w - cw + 1,
+		hfin = h - ch + 1;
 	std::vector<cutil_grig_point> res;
-	for (int i = 0; i < wfin; i+= ov_w)
+	for (int i = 0; i < wfin; i += ov_w)
 	{
 		for (int j = 0; j < hfin; j += ov_h)
 		{
-			cutil_grig_point cuboid{i,j,i+cw,j+ch};
+			cutil_grig_point cuboid{ i, j, (i + cw - 1), (j + ch - 1) };
 			res.push_back(cuboid);
 		}
 	}
@@ -160,7 +160,7 @@ void list_files_all(cutil_file_cont & sal, const char *d, const char * token)
 		perror("");
 }
 //Lista todos los archivos token de una carpeta y subcarpetas ademas lista subcarpetas
-void list_files_all(cutil_file_cont & sala,cutil_file_cont & salc, const char *d, const char * token)
+void list_files_all(cutil_file_cont & sala, cutil_file_cont & salc, const char *d, const char * token)
 {
 	DIR		*dir;
 	struct	dirent *ent;
@@ -170,14 +170,11 @@ void list_files_all(cutil_file_cont & sala,cutil_file_cont & salc, const char *d
 		while ((ent = readdir(dir)) != NULL)
 		{
 			std::string fil = ent->d_name;
-			if (fil.find(token) + 1)
-			{
+			if (fil.find(token) + 1){
 				sala.push_back(path + ent->d_name);
 			}
-			else
-			{
-				if ((int)fil.find(".") < 0)
-				{
+			else{
+				if ((int)fil.find(".") < 0){
 					salc.push_back(path + ent->d_name);
 					list_files_all(sala, salc, std::string(path + ent->d_name).c_str(), token);
 				}
@@ -188,19 +185,112 @@ void list_files_all(cutil_file_cont & sala,cutil_file_cont & salc, const char *d
 	else
 		perror("");
 }
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//______________________________________________________________________________
+//Data estructure that contains the file tree of a directory____________________
+struct	DirectoryNode;
+typedef std::vector<DirectoryNode*>	SonsType;
+//Filelistype may be a pointer to reduce the memory space but is not much.......
+typedef std::vector<std::string>	FileListType;
+
+//______________________________________________________________________________
+//Directory node simulates directory in the SO..................................
+struct DirectoryNode{
+	std::string		_label;
+	SonsType		_sons;
+	FileListType	_listFile;
+	DirectoryNode	*_father = nullptr;
+	DirectoryNode(std::string label, DirectoryNode * father) :
+		_label(label),
+		_father(father){}
+	DirectoryNode(std::string label) :
+		_label(label){}
+	void Destroy()
+	{
+
+	}
+};
+std::ostream & operator << (std::ostream & os, DirectoryNode node)
+{
+	os << node._label << "-" << node._label << " ";
+	return os;
+}
+//______________________________________________________________________________
+////////////////////////////////////////////////////////////////////////////////
+//this version of list files returns in the intial node the files with determi-.
+//mate token that existing into the root node directory, if some directory con-.
+//tains some target file then the flag is turned to true........................
+void list_files_all_tree(DirectoryNode * node, const char * token)
+{
+	DIR		*dir;
+	struct	dirent *ent;
+	std::string  path = node->_label + "/";
+	if ((dir = opendir(node->_label.c_str())) != NULL) {
+		while ((ent = readdir(dir)) != NULL){
+			std::string fil = ent->d_name;
+			if (fil.find(token) + 1)
+				node->_listFile.push_back(path + ent->d_name);
+			else{
+				if ((int)fil.find(".") < 0){
+					DirectoryNode * file = new DirectoryNode(path + ent->d_name, node);
+					node->_sons.push_back(file);
+					list_files_all_tree(*(node->_sons.end() - 1), token);
+				}
+			}
+		}
+		closedir(dir);
+	}
+	else
+		perror("");//if someone wants to say something in erro cases XD
+}
+
 #endif 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*template <typename T>
-struct is_pointer
+static std::size_t lastToken(std::string &base, std::string token)
 {
-	static const bool value = false;
-};
+	std::size_t	posf = 0,
+		posa = base.find(token);
+	for (; posa != std::string::npos; posa = base.find(token, posa + 1))
+		posf = posa;
+	return posf;
+}
 
-template <typename T>
-struct is_pointer<T*>
+std::string cutil_GetLast(std::string & base, std::string token)
 {
-	static const bool value = true;
-};/**/
-//------------final----------------------
+	return base.substr(0, lastToken(base, token));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+std::string cutil_invert(std::string & base)
+{
+	std::string res;
+	res.resize(base.length());
+	for (size_t i = 0; i < base.length(); ++i){
+		res[i] = base[i] == '/' ? '\\' : base[i];
+	}
+	return res;
+}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+std::string cutil_LastName(std::string &base)
+{
+	auto p1 = lastToken(base, "/"),
+		p2 = lastToken(base, ".");
+	return base.substr(p1 + 1, (p2 - p1) - 1);
+}
+
+std::string cutil_antecessor(std::string & path, short step)
+{
+	std::string res = path;
+	for (short i = 0; i < step; ++i)
+	{
+		auto pos = lastToken(res, "/");
+		res = res.substr(0, pos);
+	}
+	return cutil_LastName(res);
+}
+
 #endif 

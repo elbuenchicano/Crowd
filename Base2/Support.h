@@ -2,6 +2,7 @@
 #define SUPPORT_H
 
 #include <vector>
+#include <math.h>
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv/cv.h"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -82,21 +83,22 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 	cols = in[0].cols;
 	for (size_t i = 0; i < in.size() - 1; ++i){
 		FillPointsOriginal(pointsprev, in[i + 1], in[i]);
-
 		cv::Mat angles(rows, cols, CV_32FC1, cvScalar(0.));
 		cv::Mat magni(rows, cols, CV_32FC1, cvScalar(0.));
 		OFparMat data;
-		data.first	= angles;
+		data.first = angles;
 		data.second = magni;
-		cv::calcOpticalFlowPyrLK(in[i], in[i + 1], pointsprev, pointsnext,
-							 	 status, err, winSize, 3, termcrit, 0, 0.001);
-		VecDesp2Mat(pointsnext, pointsprev, data);
+		if (pointsprev.size()>0){
+			cv::calcOpticalFlowPyrLK(in[i], in[i + 1], pointsprev, pointsnext,
+				status, err, winSize, 3, termcrit, 0, 0.001);
+			VecDesp2Mat(pointsnext, pointsprev, data);
+		}
 
-		/*cv::Mat sc = in[0];
-		for (auto &p : points[0]){
+		/*cv::Mat sc = in[i+1].clone();
+		for (auto &p : pointsprev){
 			cv::circle(sc, p, 0.5, cv::Scalar(0, 255, 0));
 		}
-		for (auto &p : points[1]){
+		for (auto &p : pointsnext){
 			cv::circle(sc, cv::Point((int)p.x, (int)p.y), 0.5, cv::Scalar(255, 0, 255));
 		}/**/
 		out.push_back(data);
@@ -128,7 +130,42 @@ void vectorMat2YML(std::vector<t> &vec, std::string dest, std::string token)
 
 //-------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////
-//seting function for input file and script build
+struct MyVideoCapture : public cv::VideoCapture
+{
+	MyVideoCapture(std::string f){
+		open(f);
+	}
+	bool increment(int s, cv::Mat & res){
+		cv::Mat img;
+		if (isOpened()){
+			for (int sa = 0; sa < (s - 1); ++sa)
+				read(img);
+			return read(res) ? true : false;
+		}
+		return false;
+	}
+	~MyVideoCapture(){
+		release();
+	}
+};
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+double supp_euclidean_distance(const cv::Mat_<float> & a,const cv::Mat_<float> & b)
+{
+	assert(a.cols == b.cols);
+	double cum=0;
+	for (auto i = 0; i < a.cols; ++i)
+		cum	+= (b(0, i) - a(0, i)) * (b(0, i) - a(0, i));
+	return sqrt(cum);
+}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+void supp_create_new_dir(std::string base, std::string ndir)
+{
+	
+}
 
 #endif 
