@@ -5,13 +5,13 @@
 #include "stdafx.h"
 #include "CrowdAnomalies.h"
 
-int _tmain(int argc, char * argv[])
+int main(int argc, char ** argv)
 {
 	switch(argc){
 	case 1:
 		{
 		cout << "Case 1:"<<endl;
-		CrowdAnomalies cr("e:/crowdb2/input.txt");
+		CrowdAnomalies cr("e:/crowdb2/input.yml");
 		cr.Execute();
 		break;
 		}
@@ -23,13 +23,8 @@ int _tmain(int argc, char * argv[])
 		cr.Execute();
 		break;
 		}
-	case 3:
+	default:
 		{
-		string token = argv[1];
-		if (token == "-build")
-		{
-
-		}
 		}
 	}
 	return 0;

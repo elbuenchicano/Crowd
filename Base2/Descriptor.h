@@ -50,15 +50,23 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase
 		double	binRange		= 360 / _orientNumBin,
 				binVelozRange	= _maxMagnitude / (float)_magnitudeBin;
 		int		cubPos			= 0;
+		
 		for (auto & cuboid : in.second ) //for each cuboid
 		{
+
 			HistoType histogram(1, _orientNumBin * (_magnitudeBin + 1));
 			histogram = histogram * 0;
 			for (auto & imgPair : in.first) // for each image
 			{
-				for (int i = cuboid.xi; i < cuboid.xf; ++i)
+				/*Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
+				frm = frm * 0;
+				cv::rectangle(	frm,
+					cv::Point(cuboid.yi , cuboid.xi),
+					cv::Point(cuboid.yf, cuboid.xf), 
+					cv::Scalar(0, 0, 255) );/**/
+				for (int i = cuboid.xi; i <= cuboid.xf; ++i)
 				{
-					for (int j = cuboid.yi; j < cuboid.yf; ++j)
+					for (int j = cuboid.yi; j <= cuboid.yf; ++j)
 					{
 						if (imgPair.second(i, j) > _thrMagnitude)
 						{

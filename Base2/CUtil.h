@@ -10,6 +10,7 @@
 #include <iterator>
 #include <list>
 #include <string.h>
+#include <windows.h>
 
 //-----------------Definciones-----------------------------------------------
 //----------------------------------------------------------------------------
@@ -291,6 +292,34 @@ std::string cutil_antecessor(std::string & path, short step)
 		res = res.substr(0, pos);
 	}
 	return cutil_LastName(res);
+}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+std::string cutil_create_new_dir(std::string & base, std::string & ndir)
+{
+	std::string	cmd = "md ",
+			str = cutil_invert(base) + "\\" + ndir;
+	cmd += str;
+	std::cout << cmd<<std::endl;
+	system(cmd.c_str());
+	return  (base + "/" + ndir);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+void cutil_create_new_dir_all(std::string & base)
+{
+	auto posa = base.find("/");
+	for (posa = base.find("/", posa + 1); posa != std::string::npos;
+		posa = base.find("/", posa + 1))
+	{
+		std::string dir = base.substr(0,posa);
+		CreateDirectoryA(cutil_invert(dir).c_str(),NULL);
+	}
+	CreateDirectoryA(cutil_invert(base).c_str(),NULL);
 }
 
 #endif 

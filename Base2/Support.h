@@ -115,7 +115,7 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 //===========================================
 //heritance for 
 template <class t>
-void vectorMat2YML(std::vector<t> &vec, std::string dest, std::string token)
+void supp_vectorMat2YML(std::vector<t> &vec, std::string dest, std::string token)
 {
 	int cont = 0;
 	FileStorage fs(dest, FileStorage::WRITE);
@@ -160,12 +160,6 @@ double supp_euclidean_distance(const cv::Mat_<float> & a,const cv::Mat_<float> &
 		cum	+= (b(0, i) - a(0, i)) * (b(0, i) - a(0, i));
 	return sqrt(cum);
 }
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-void supp_create_new_dir(std::string base, std::string ndir)
-{
-	
-}
+
 
 #endif 

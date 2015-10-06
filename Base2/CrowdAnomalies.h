@@ -95,15 +95,9 @@ void CrowdAnomalies::Execute()
 			Test_Offline();
 			break;
 		}
-		case 10:{//for training
-			Precompute_OF();
-			Extract_Info();
+		case 10:{//for test offline
 			Feat_Extract();
-			break;
-		}
-		case 11:{//for test offline
-			Precompute_OF();
-			Feat_Extract();
+			Test_Offline();
 			break;
 		}
 		default:{}
@@ -210,9 +204,8 @@ void CrowdAnomalies::Extract_Info()
 		out(0, 1) = sumVal / (pixels?pixels:1);
 		vecOut[cont++] = out;
 	}
-	vectorMat2YML< Mat_<float> >(vecOut, file_out, string("cuboid"));
+	supp_vectorMat2YML< Mat_<float> >(vecOut, file_out, string("cuboid"));
 }
-
 //==================================================================
 //Train usin precomputed optical flow images........................
 //requeriments in the configuration file............................
@@ -234,8 +227,9 @@ void CrowdAnomalies::Feat_Extract()
 	info["main_feat_extract_dir"]		>> directory;
 	info["main_feat_extract_output"]	>> dir_out;
 	info["main_feat_extract_token"]		>> token;
-	info["main_feat_extract_single_token"]		>> token_out;
+	info["main_feat_extract_token_out"]	>> token_out;
 	
+	cutil_create_new_dir_all(dir_out);
 	DirectoryNode	root(directory);
 	list_files_all_tree(&root, token.c_str());
 	queue<DirectoryNode *> nodelist;
@@ -281,12 +275,12 @@ void CrowdAnomalies::Test_Offline()
 	//-------------------------------------------------------------
 	//load info....................................................
 	FileStorage info(_mainfile, FileStorage::READ);
-	info["main_test_of_test_file"] >> testFile;
+	info["main_test_of_test_file"]	>> testFile;
 	info["main_test_of_train_file"] >> trainFile;
-	info["main_test_of_output"] >> file_out;
-	info["main_test_of_threshold"] >> threshold;
-	info["main_test_of_graphix_flag"] >> flagGraphix;
-	info["main_test_of_gtvalidate_flag"] >> flagGtval;
+	info["main_test_of_output"]		>> file_out;
+	info["main_test_of_threshold"]	>> threshold;
+	info["main_test_of_graphix_flag"]		>> flagGraphix;
+	info["main_test_of_gtvalidate_flag"]	>> flagGtval;
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
 	FileStorage trainfs(trainFile, FileStorage::READ);
@@ -300,9 +294,9 @@ void CrowdAnomalies::Test_Offline()
 		testfs[keyphrase.str()] >> test;
 		determinePatterns(train, test, finaloutvec[i], threshold);
 	}
-	if (flagGtval == "true"){
+	/*if (flagGtval == "true"){
 		GTValidation(finaloutvec);
-	}
+	}*/
 	if (flagGraphix == "true"){
 		Graphix(finaloutvec);
 	}
@@ -410,6 +404,7 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 {	
 	string	directory,
 			file_extension,
+			file_extension_out,
 			directory_out,
 			token_out;
 	short	rows,
@@ -422,17 +417,22 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 	fs["support_graphix_dir"] >> directory;
 	fs["support_graphix_out_dir"] >> directory_out;
 	fs["support_graphix_out_token"] >> token_out;
+	fs["support_graphix_out_ext"] >> file_extension_out;
 
 	//=====================================================================
+
+	cutil_create_new_dir_all(directory_out);
+
 	CommonLoadInfo(file_list, directory, "", file_extension.c_str(), grid, rows, cols);
 	int step = _main_frame_interval * _main_frame_range;
 	for (size_t i = step-1, pos = 0; i < file_list.size() && 
 							       pos < rpta[0].size(); i+= step, ++pos)
 	{
 		stringstream strout;
-		strout << directory_out << "/" << token_out << pos << "." <<file_extension;
+		strout << directory_out << "/" << token_out << pos << "." <<file_extension_out;
 		Mat img = imread(file_list[i]);
 		ShowAnomaly(img, pos, rpta, grid);
+		cv::resize(img, img, img.size()*2);
 		imwrite(strout.str(), img);
 	}
 }
@@ -475,11 +475,11 @@ void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_po
 {
 	cout << current._label;
 	OFBasedDescriptorBase * descrip = selectChildDes(_main_descriptor_type, _mainfile);
-	Trait_M::DesOutDataMag	vecOutput(grid.size());
+	Trait_OM::DesOutData	vecOutput(grid.size());
 	
 	size_t			step = _main_frame_range - 1;
-	Trait_M::vecMatMag		temporalset(step);
-	Trait_M::DesInDataMag	input;
+	Trait_OM::DesvecParMat	temporalset(step);
+	Trait_OM::DesInData		input;
 	input.second = grid;
 	
 	for (size_t i = step - 1; i < current._listFile.size(); i += step)
@@ -487,22 +487,15 @@ void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_po
 		for (int j = 0; j < step; ++j)
 		{
 			FileStorage imgfs(current._listFile[i - j], FileStorage::READ);
-			imgfs["magnitude"] >> temporalset[step - j - 1];
+			imgfs["angle"]		>> temporalset[step - j - 1].first;
+			imgfs["magnitude"]	>> temporalset[step - j - 1].second;
 		}
 		input.first = temporalset;
 		descrip->Describe(&input, &vecOutput);
 	}
-	Mat Descriptor;
-	for (auto & cub : vecOutput)
-		Descriptor.push_back(cub);
-	
-	//mainOut.push_back(videoDescriptor);
 	string path = outDir + "/" + cutil_LastName(current._label) + outToken;
-
-	FileStorage fs(path , FileStorage::WRITE);
-	fs << "OriginalPath"	<< ((current._father) ? current._father->_label : "Root");
-	fs << "Descriptors"		<< Descriptor;
+	supp_vectorMat2YML< Mat_<float> >(vecOutput, path, string("cuboid"));
 		
-	cout << " Des OK\n";
+	cout << " Des-OK\n";
 	delete descrip;/**/
 }
