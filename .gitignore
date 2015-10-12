@@ -28,3 +28,4 @@ Base2.v12.suo
 x64/Debug/Base2.exe
 *.swp
 Base2/**/Debug/
+Base2/Base2.vcxproj.user

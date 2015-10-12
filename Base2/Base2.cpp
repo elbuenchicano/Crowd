@@ -11,7 +11,7 @@ int main(int argc, char ** argv)
 	case 1:
 		{
 		cout << "Case 1:"<<endl;
-		CrowdAnomalies cr("e:/crowdb2/input.yml");
+		CrowdAnomalies cr("d:/crowdb2/pruebas/test3.yml");
 		cr.Execute();
 		break;
 		}

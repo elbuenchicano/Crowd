@@ -160,6 +160,39 @@ double supp_euclidean_distance(const cv::Mat_<float> & a,const cv::Mat_<float> &
 		cum	+= (b(0, i) - a(0, i)) * (b(0, i) - a(0, i));
 	return sqrt(cum);
 }
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//Metric units
+class Metric_units{
+public:
+	short tp_ = 0, tn_ = 0, fp_ = 0, fn_ = 0;
+	Metric_units(){
+		ptr = &tp_;
+	}
+	short & operator [](int pos){
+		assert(pos >= 0 && pos < 4);
+		return ptr[pos];
+	}
+private: //if i want create a c construct 
+	short * ptr;
+};
 
+double supp_Precision(Metric_units uni){
+	double den = (uni.tp_ + uni.fp_);
+	return uni.tp_ / den ;
+	//return ( uni.tp_ / (uni.tp_ + uni.fp_) );
+}
 
+double supp_Recall(Metric_units uni){
+	double den = (uni.tp_ + uni.fn_);
+	return uni.tp_ / den;
+	//return ( uni.tp_ / (uni.tp_ + uni.fn_) );
+}
+
+double supp_FalsePositiveRate(Metric_units uni){
+	double den = (uni.fp_ + uni.tn_);
+	return uni.fp_ / den;
+	//return ( uni.fp_ / (uni.fp_ + uni.tn_) );
+}
 #endif 

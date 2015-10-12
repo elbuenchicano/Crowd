@@ -223,11 +223,10 @@ void CrowdAnomalies::Feat_Extract()
 	vector<Mat_<float> >		info_out;
 	//-------------------------------------------------------------
 	//load info....................................................
-	FileStorage info(_mainfile, FileStorage::READ);
-	info["main_feat_extract_dir"]		>> directory;
-	info["main_feat_extract_output"]	>> dir_out;
-	info["main_feat_extract_token"]		>> token;
-	info["main_feat_extract_token_out"]	>> token_out;
+	_fs["main_feat_extract_dir"]		>> directory;
+	_fs["main_feat_extract_output"]	>> dir_out;
+	_fs["main_feat_extract_token"]		>> token;
+	_fs["main_feat_extract_token_out"]	>> token_out;
 	
 	cutil_create_new_dir_all(dir_out);
 	DirectoryNode	root(directory);
@@ -274,13 +273,12 @@ void CrowdAnomalies::Test_Offline()
 	
 	//-------------------------------------------------------------
 	//load info....................................................
-	FileStorage info(_mainfile, FileStorage::READ);
-	info["main_test_of_test_file"]	>> testFile;
-	info["main_test_of_train_file"] >> trainFile;
-	info["main_test_of_output"]		>> file_out;
-	info["main_test_of_threshold"]	>> threshold;
-	info["main_test_of_graphix_flag"]		>> flagGraphix;
-	info["main_test_of_gtvalidate_flag"]	>> flagGtval;
+	_fs["main_test_of_test_file"]	>> testFile;
+	_fs["main_test_of_train_file"]	>> trainFile;
+	_fs["main_test_of_output"]		>> file_out;
+	_fs["main_test_of_threshold"]	>> threshold;
+	_fs["main_test_of_graphix_flag"]	>> flagGraphix;
+	_fs["main_test_of_gtvalidate_flag"]	>> flagGtval;
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
 	FileStorage trainfs(trainFile, FileStorage::READ);
@@ -294,9 +292,9 @@ void CrowdAnomalies::Test_Offline()
 		testfs[keyphrase.str()] >> test;
 		determinePatterns(train, test, finaloutvec[i], threshold);
 	}
-	/*if (flagGtval == "true"){
+	if (flagGtval == "true"){
 		GTValidation(finaloutvec);
-	}*/
+	}
 	if (flagGraphix == "true"){
 		Graphix(finaloutvec);
 	}
@@ -306,31 +304,95 @@ void CrowdAnomalies::Test_Offline()
 }
 /////////////////////////////////////////////////////////////////////////
 //validation function with GT
+static inline void gridGt(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<bool>  &res)
+{
+	res.clear();
+	res.resize(grid.size());
+	int cont = 0;
+	for (auto & cuboid : grid ) //for each cuboid
+	{
+		res[cont] = false;
+		/*Mat frm(img.rows,img.cols, CV_8SC3);
+		frm = frm * 0;
+		cv::rectangle(	frm,
+			cv::Point(cuboid.yi , cuboid.xi),
+			cv::Point(cuboid.yf, cuboid.xf), 
+			cv::Scalar(0, 0, 255) );/**/
+		for (int i = cuboid.xi; i <= cuboid.xf; ++i)
+		{
+			for (int j = cuboid.yi; j <= cuboid.yf; ++j)
+			{
+				if (img(i, j))
+					res[cont] = true;
+			}
+		}
+		++cont;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//result : 0 = tp, 1 = tn, 2 = fp, 3 = fn;
+static inline int Validate_FrmLvl(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<vector<bool>> &resGrid, int pos)
+{
+	vector<bool>	gt_grid;
+	gridGt(img, grid, gt_grid);
+	bool	gt_anomaly	= false,
+			res_anomaly = false,
+			both		= false;
+	for (size_t i = 0; i < gt_grid.size(); ++i)
+	{
+		if (gt_grid[i])
+			gt_anomaly = true;
+		if (!resGrid[i][pos])
+			res_anomaly = true;
+		if (!resGrid[i][pos] && gt_grid[i])
+			both = true;
+	}
+	//if ( gt_anomaly &&  res_anomaly &&  both)	return 0;
+	if (!gt_anomaly && !res_anomaly && !both)	return 2;
+	if ( gt_anomaly && !both)					return 1;
+	if (!gt_anomaly && res_anomaly)				return 3;
+	return 0;
+}
+
 void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta)
 {
 	string	directory,
-			token;
+			token,
+			out_file;
 	short	rows, 
 			cols;
-
 	//-------------------------------------------------------------------
+
 	cutil_file_cont				file_list;
-	vector<cutil_grig_point>	grid;
-	
+	vector<cutil_grig_point>	grid;	
 	//-------------------------------------------------------------------
 	//load info..........................................................
-	FileStorage info(_mainfile, FileStorage::READ);
-	info["main_gtvalidation_dir"] >> directory;
-	info["main_gtvalidation_token"] >> token;
+
+	_fs["main_gtvalidation_dir"]	>> directory;
+	_fs["main_gtvalidation_token"]	>> token;
+	_fs["main_gtvalidation_out_file"]	>> out_file;
 	CommonLoadInfo(file_list, directory, "", token.c_str(), grid, rows, cols);
+	
+	ofstream outFrame	(out_file.c_str(), ios::app);
 
 	//-------------------------------------------------------------------
+
 	int step = _main_frame_interval * _main_frame_range;
-	for (size_t i = step-1, pos = 0; i < file_list.size() && 
-							       pos < rpta[0].size(); i+= step, ++pos)
+	Metric_units munit;
+	for (size_t i = step-2, pos = 0; (i < file_list.size()) && 
+							         (pos < rpta[0].size()); i+= step, ++pos)
 	{
-		
+		//cout << i << " " << pos << endl;
+		Mat_<int> img  = imread(file_list[i], CV_BGR2GRAY);
+		int mtype	= Validate_FrmLvl(img, grid, rpta, pos);
+		++munit[mtype];
 	}
+	double	FPR = supp_FalsePositiveRate(munit),
+			TPR = supp_Recall(munit);
+	outFrame << FPR	<< " ";
+	outFrame << TPR << endl;
+	outFrame.close();
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -412,12 +474,11 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 	cutil_file_cont				file_list;
 	vector<cutil_grig_point>	grid;
 
-	FileStorage fs(_mainfile, FileStorage::READ);
-	fs["support_graphix_ext"] >> file_extension;
-	fs["support_graphix_dir"] >> directory;
-	fs["support_graphix_out_dir"] >> directory_out;
-	fs["support_graphix_out_token"] >> token_out;
-	fs["support_graphix_out_ext"] >> file_extension_out;
+	_fs["support_graphix_ext"] >> file_extension;
+	_fs["support_graphix_dir"] >> directory;
+	_fs["support_graphix_out_dir"] >> directory_out;
+	_fs["support_graphix_out_token"] >> token_out;
+	_fs["support_graphix_out_ext"] >> file_extension_out;
 
 	//=====================================================================
 
@@ -425,7 +486,7 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 
 	CommonLoadInfo(file_list, directory, "", file_extension.c_str(), grid, rows, cols);
 	int step = _main_frame_interval * _main_frame_range;
-	for (size_t i = step-1, pos = 0; i < file_list.size() && 
+	for (size_t i = step-2, pos = 0; i < file_list.size() && 
 							       pos < rpta[0].size(); i+= step, ++pos)
 	{
 		stringstream strout;

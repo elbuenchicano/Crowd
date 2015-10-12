@@ -96,7 +96,7 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase
 //==================================================================
 //==================================================================
 
-//trait for MO descriptor
+//trait for M descriptor
 struct Trait_M
 {
 	typedef cv::Mat_<float>							HistoType;
@@ -159,6 +159,94 @@ struct OFBasedDescriptorMagnitude : public OFBasedDescriptorBase
 
 /////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//==================================================================
+//==================================================================
+//trait for MO descriptor
+struct Trait_OMA
+{
+	typedef std::pair< cv::Mat_<float>, cv::Mat_<float> >	DesparMat;
+	typedef std::vector<DesparMat>							DesvecParMat;
+	typedef std::vector<cutil_grig_point>					CuboTypeCont;
+	typedef cv::Mat_<float>									HistoType;
+	typedef std::pair<DesvecParMat, CuboTypeCont>			DesInData;	//input data type
+	typedef std::vector<HistoType>							DesOutData;//output data type
+};
+//==================================================================
+//descriptor magnitude orientation  
+template <class tr>
+struct OFBasedDescriptorMOA : public OFBasedDescriptorBase
+{
+	typedef typename  tr::DesInData		DesInData;
+	typedef typename  tr::DesOutData	DesOutData;
+	typedef typename  tr::HistoType		HistoType;
+
+	int		_orientNumBin,
+			_magnitudeBin,
+			_maxMagnitude,
+			_densityNumBin;
+	float	_thrMagnitude;
+	//______________________________________________________________
+	
+	virtual void Describe(void * invoid, void *outvoid)
+	{
+
+		DesInData & in		= *((DesInData*)(invoid));
+		DesOutData & out	= *((DesOutData*)(outvoid));
+
+		double	binRange		= 360 / _orientNumBin,
+				binVelozRange	= _maxMagnitude / (float)_magnitudeBin;
+
+		int		cubPos			= 0,
+				numPixels		= (in.second[0].xf - in.second[0].xi) *
+								  (in.second[0].yf - in.second[0].yi);
+		
+		for (auto & cuboid : in.second ) //for each cuboid
+		{
+
+			HistoType histogram(1,	_orientNumBin * 
+									(_magnitudeBin + 1) *
+									_densityNumBin);
+			histogram = histogram * 0;
+			for (auto & imgPair : in.first) // for each image
+			{
+				/*Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
+				frm = frm * 0;
+				cv::rectangle(	frm,
+					cv::Point(cuboid.yi , cuboid.xi),
+					cv::Point(cuboid.yf, cuboid.xf) ,
+					cv::Scalar(0, 0, 255) );/**/
+				for (int i = cuboid.xi; i <= cuboid.xf; ++i)
+				{
+					for (int j = cuboid.yi; j <= cuboid.yf; ++j)
+					{
+						if (imgPair.second(i, j) > _thrMagnitude)
+						{
+							int p = (int)(imgPair.first(i, j) / binRange);
+							int s = (int)(imgPair.second(i, j) / binVelozRange);
+
+							if (s >= _magnitudeBin) s = _magnitudeBin;
+							histogram(0, p*_magnitudeBin + s)++;
+						}
+					}
+				}
+			}
+			out[cubPos++].push_back(histogram);
+		}
+	}
+	virtual void setData(std::string file){
+		cv::FileStorage fs(file, cv::FileStorage::READ);
+		fs["descriptor_orientNumBin"] >> _orientNumBin;
+		fs["descriptor_magnitudeBin"] >> _magnitudeBin;
+		fs["descriptor_maxMagnitude"] >> _maxMagnitude;
+		fs["descriptor_thrMagnitude"] >> _thrMagnitude;
+		fs["descriptor_densityNumBin"]	>> _densityNumBin;
+	}
+};
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
 //Control descriptor funtion.........................................
 OFBasedDescriptorBase * selectChildDes(short opt, std::string file)
 {
@@ -173,6 +261,10 @@ OFBasedDescriptorBase * selectChildDes(short opt, std::string file)
 			res = new OFBasedDescriptorMagnitude<Trait_M>;
 			break;
 		}
+		case 3:{
+			res = new OFBasedDescriptorMOA<Trait_OMA>;
+			break;
+		}
 		default:{}
 	}
 	if(res) res->setData(file);
@@ -183,3 +275,96 @@ OFBasedDescriptorBase * selectChildDes(short opt, std::string file)
 
 
 #endif//HDESCRIPTOR_H
+
+
+/*
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//==================================================================
+//==================================================================
+//trait for MO descriptor
+struct Trait_OMA
+{
+	typedef std::pair< cv::Mat_<float>, cv::Mat_<float> >	DesparMat;
+	typedef std::vector<DesparMat>							DesvecParMat;
+	typedef std::vector<cutil_grig_point>					CuboTypeCont;
+	typedef cv::Mat_<float>									HistoType;
+	typedef std::pair<DesvecParMat, CuboTypeCont>			DesInData;	//input data type
+	typedef std::vector<HistoType>							DesOutData;//output data type
+};
+//==================================================================
+//descriptor magnitude orientation  
+template <class tr>
+struct OFBasedDescriptorMOA : public OFBasedDescriptorBase
+{
+	typedef typename  tr::DesInData		DesInData;
+	typedef typename  tr::DesOutData	DesOutData;
+	typedef typename  tr::HistoType		HistoType;
+
+	int		_orientNumBin,
+			_magnitudeBin,
+			_maxMagnitude,
+			_densityNumBin;
+	float	_thrMagnitude;
+	//______________________________________________________________
+	
+	virtual void Describe(void * invoid, void *outvoid)
+	{
+
+		DesInData & in		= *((DesInData*)(invoid));
+		DesOutData & out	= *((DesOutData*)(outvoid));
+
+		double	binRange		= 360 / _orientNumBin,
+				binVelozRange	= _maxMagnitude / (float)_magnitudeBin;
+
+		int		cubPos			= 0,
+				numPixels		= (in.second[0].xf - in.second[0].xi) *
+								  (in.second[0].yf - in.second[0].yi);
+		
+		for (auto & cuboid : in.second ) //for each cuboid
+		{
+
+			HistoType histogram(1,	_orientNumBin * 
+									(_magnitudeBin + 1) *
+									_densityNumBin);
+			histogram = histogram * 0;
+			for (auto & imgPair : in.first) // for each image
+			{
+				/*Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
+				frm = frm * 0;
+				cv::rectangle(	frm,
+					cv::Point(cuboid.yi , cuboid.xi),
+					cv::Point(cuboid.yf, cuboid.xf) ,
+					cv::Scalar(0, 0, 255) );
+				for (int i = cuboid.xi; i <= cuboid.xf; ++i)
+				{
+					for (int j = cuboid.yi; j <= cuboid.yf; ++j)
+					{
+						if (imgPair.second(i, j) > _thrMagnitude)
+						{
+							int p = (int)(imgPair.first(i, j) / binRange);
+							int s = (int)(imgPair.second(i, j) / binVelozRange);
+
+							if (s >= _magnitudeBin) s = _magnitudeBin;
+							histogram(0, p*_magnitudeBin + s)++;
+						}
+					}
+				}
+			}
+			out[cubPos++].push_back(histogram);
+		}
+	}
+	virtual void setData(std::string file){
+		cv::FileStorage fs(file, cv::FileStorage::READ);
+		fs["descriptor_orientNumBin"] >> _orientNumBin;
+		fs["descriptor_magnitudeBin"] >> _magnitudeBin;
+		fs["descriptor_maxMagnitude"] >> _maxMagnitude;
+		fs["descriptor_thrMagnitude"] >> _thrMagnitude;
+		fs["descriptor_densityNumBin"]	>> _densityNumBin;
+	}
+};
+
+*/
