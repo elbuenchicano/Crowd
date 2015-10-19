@@ -34,20 +34,27 @@ class CrowdAnomalies
 		_main_descriptor_type;
 
 	//MAIN FUNCTIONS....................................................
-	void	Extract_Info();
 	void	Precompute_OF();
+	void	Precompute_Gabor();
 	void	Feat_Extract();
 	void	Test_Offline();
 	void	GTValidation(vector<vector<bool> > &);
 
 	//SUPPORT FUNCTIONS.................................................
+	void	Feat_Extract_OM();
+	void	DescribeSeq		( DirectoryNode &, vector<cutil_grig_point> &, Mat &,
+							  string &, string & );
+	void	Feat_Extract_Gabor();
+	
+	//..................................................................
 	void	CommonLoadInfo	( cutil_file_cont &, string &, string, const char *, 
 						      vector<cutil_grig_point> &, short &, short & );
 	bool	CommonLoadInfo	( DirectoryNode *, string, const char *,
 							  vector<cutil_grig_point> &, short &, short & );
 	void	Graphix			( vector<vector<bool> > & );
-	void	DescribeSeq		( DirectoryNode &, vector<cutil_grig_point> &, Mat &,
-							  string &, string & );
+
+
+	
 public:
 	CrowdAnomalies(string featf);
 	~CrowdAnomalies(){}
@@ -80,7 +87,7 @@ void CrowdAnomalies::Execute()
 	switch (op)
 	{
 		case 0:{
-			
+			Precompute_Gabor();
 			break;
 		}
 		case 1:{
@@ -145,66 +152,53 @@ void CrowdAnomalies::Precompute_OF()
 	}
 	delete oflow;
 }
-//==================================================================
-//Train usin precomputed the optical flow information...............
-//requeriments in the configuration file............................
-//main_train_dir = directory........................................
-//returns info file in yml format...................................
-//main_extract_info: "output file"..................................
-void CrowdAnomalies::Extract_Info()
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//______________________________________________________________________________
+//function that extract gabor information of directory of images
+//inputs..................................................................	
+//directory : directory with images.......................................
+//ext : file extension....................................................
+//orientation scales : for gabor filter ..................................
+//gaborType : if want the sum or max value for scales....................
+void CrowdAnomalies::Precompute_Gabor()
 {
-	string		directory,
-				file_out;
-	short		rows,
-				cols;
-	cutil_file_cont				file_list;
-	vector<cutil_grig_point>	grid;
-	
-	//-------------------------------------------------------------
-	//load info....................................................
-	FileStorage info(_mainfile, FileStorage::READ);
-	info["main_extract_info_dir"] >> directory;
-	info["main_extract_infofile"] >> file_out;
-	CommonLoadInfo(file_list, directory, "angle", "of.yml", grid, rows, cols);
-
-	//-------------------------------------------------------------
-	vector<Mat_<float> > vecMag(file_list.size());
-	int	cont = 0;
-	for (auto &file : file_list){
-		FileStorage imgfs(file, FileStorage::READ);
-		Mat	img;
-		imgfs["magnitude"] >> img;
-		vecMag[cont++] = img;
-	}
-	//-------------------------------------------------------------
-	cont = 0;
-	vector<Mat_<float> >		vecOut(grid.size());
-	for (auto & cuboid : grid)
+	string	directory,
+			ext,
+			out_directory;
+	int		orientation,
+			scales,
+			gaborType,
+			wdsize;
+	cutil_file_cont fileList;
+	//...................................................................
+	//loading info
+	_fs["main_precompute_gabor_dir"]			>> directory;
+	_fs["main_precompute_gabor_out_dir"]		>> out_directory;
+	_fs["main_precompute_gabor_ext"]			>> ext;
+	_fs["main_precompute_gabor_orientation"]	>> orientation;
+	_fs["main_precompute_gabor_scales"]			>> scales;
+	_fs["main_precompute_gabor_type"]			>> gaborType;
+	_fs["main_precompute_gabor_wdsize"]			>> wdsize;
+	//...................................................................
+	list_files_all(fileList, directory.c_str(), ext.c_str());
+	cutil_create_new_dir_all(out_directory);
+	for (auto & filename : fileList)
 	{
-		float	sumVal = 0, 
-				maxVal = 0;
-		size_t	pixels = 0;
-		for (auto & magImg : vecMag)
+		cout << filename << endl;
+		Mat		img = imread(filename);
+		auto	vecGabor = supp_gabor_filter(img, scales, orientation, cv::Size(wdsize, wdsize), gaborType);
+		string  saveFile = out_directory + "/" + 
+						   cutil_LastName(filename) + "_gabor.yml";
+		FileStorage fs(saveFile, FileStorage::WRITE);
+		for (size_t i = 0; i < vecGabor.size(); ++i)
 		{
-			for (int i = cuboid.xi; i < cuboid.xf; ++i)
-			{
-				for (int j = cuboid.yi; j < cuboid.yf; ++j)
-				{
-					//cout << i << " " << j << endl;
-					if (magImg(i, j) > maxVal) maxVal = magImg(i, j);
-					if (magImg(i, j) > 0.1){
-						sumVal += magImg(i, j);
-						++pixels;
-					}
-				}
-			}
+			stringstream ss;
+			ss << "scale" << i;
+			fs << ss.str() << vecGabor[i];
 		}
-		Mat_<float> out(1, 2);
-		out(0, 0) = maxVal;
-		out(0, 1) = sumVal / (pixels?pixels:1);
-		vecOut[cont++] = out;
 	}
-	supp_vectorMat2YML< Mat_<float> >(vecOut, file_out, string("cuboid"));
 }
 //==================================================================
 //Train usin precomputed optical flow images........................
@@ -212,42 +206,16 @@ void CrowdAnomalies::Extract_Info()
 //main_train_dir = directory................................
 void CrowdAnomalies::Feat_Extract()
 {
-	string		directory,
-				dir_out,
-				token,
-				token_out;
-	short		rows, 
-				cols;
-	cutil_file_cont				file_list;
-	vector<cutil_grig_point>	grid;
-	vector<Mat_<float> >		info_out;
-	//-------------------------------------------------------------
-	//load info....................................................
-	_fs["main_feat_extract_dir"]		>> directory;
-	_fs["main_feat_extract_output"]	>> dir_out;
-	_fs["main_feat_extract_token"]		>> token;
-	_fs["main_feat_extract_token_out"]	>> token_out;
-	
-	cutil_create_new_dir_all(dir_out);
-	DirectoryNode	root(directory);
-	list_files_all_tree(&root, token.c_str());
-	queue<DirectoryNode *> nodelist;
-
-	assert(CommonLoadInfo(&root, "angle", token.c_str(), grid, rows, cols));
-	
-	//..........................................................................
-	Mat		mainOut;
-	for (nodelist.push(&root); !nodelist.empty();)
+	switch (_main_descriptor_type)
 	{
-		auto current = nodelist.front();
-		nodelist.pop();
-		
-		for (auto & currentSon : current->_sons)
-			nodelist.push(currentSon);
-		
-		if (current->_listFile.size()){
-			DescribeSeq(*current, grid, mainOut, dir_out, token_out);
-		}
+	case 1:{
+		Feat_Extract_OM();
+		break;
+	}
+	case 2:{
+	   Feat_Extract_Gabor();
+	   break;
+	}
 	}
 }
 //==================================================================
@@ -304,7 +272,7 @@ void CrowdAnomalies::Test_Offline()
 }
 /////////////////////////////////////////////////////////////////////////
 //validation function with GT
-static inline void gridGt(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<bool>  &res)
+static inline void	gridGt(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<bool>  &res)
 {
 	res.clear();
 	res.resize(grid.size());
@@ -329,10 +297,9 @@ static inline void gridGt(Mat_<int> &img, vector<cutil_grig_point> &grid, vector
 		++cont;
 	}
 }
-
 ////////////////////////////////////////////////////////////////////////////////
 //result : 0 = tp, 1 = tn, 2 = fp, 3 = fn;
-static inline int Validate_FrmLvl(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<vector<bool>> &resGrid, int pos)
+static inline int	Validate_FrmLvl(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<vector<bool>> &resGrid, int pos)
 {
 	vector<bool>	gt_grid;
 	gridGt(img, grid, gt_grid);
@@ -354,9 +321,7 @@ static inline int Validate_FrmLvl(Mat_<int> &img, vector<cutil_grig_point> &grid
 	if (!gt_anomaly && res_anomaly)				return 3;
 	return 0;
 }
-
-void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta)
-{
+void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
 	string	directory,
 			token,
 			out_file;
@@ -394,16 +359,13 @@ void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta)
 	outFrame << TPR << endl;
 	outFrame.close();
 }
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 ////////////////SUPPORT FUNCTIONS////////////////////////////////////////
-
 //simple repettive code for principal functions
 void CrowdAnomalies::CommonLoadInfo(cutil_file_cont & file_list, string & directory,
-string key, const char * token, vector<cutil_grig_point> & grid, short &rows, short  &cols)
-{
+string key, const char * token, vector<cutil_grig_point> & grid, short &rows, short  &cols){
 	Mat			img;
 	list_files_all(file_list, directory.c_str(), token);
 	if(key=="")
@@ -421,7 +383,6 @@ string key, const char * token, vector<cutil_grig_point> & grid, short &rows, sh
 //------------------------------------------------------------------------
 //compare patterns using euclidean distance
 //
-
 static void SimpleDistance(Mat & train, Mat & test, vector<bool> & out, float thr)
 {
 	for (auto i = 0; i < test.rows; ++i)
@@ -438,6 +399,8 @@ static void SimpleDistance(Mat & train, Mat & test, vector<bool> & out, float th
 		}
 	}
 }
+//funtion  that determine patterns using simple distance
+//receives matrix patterns
 static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr, int type)
 {
 	out.clear();
@@ -528,12 +491,57 @@ bool CrowdAnomalies::CommonLoadInfo ( DirectoryNode *root, string key, const cha
 	return false;
 
 }
+////////////////////////////////////////////////////////////////////////////////
+//Feat extraction OM creates feature vector using the orientation magnitude.....
+//descriptor....................................................................
+//inputs........................................................................
+//directory with of
+//direcotry output
+//token of oftical flow files
+//token out
+void CrowdAnomalies::Feat_Extract_OM(){
+	string		directory,
+				dir_out,
+				token,
+				token_out;
+	short		rows,
+				cols;
+	cutil_file_cont				file_list;
+	vector<cutil_grig_point>	grid;
+	vector<Mat_<float> >		info_out;
+	//-------------------------------------------------------------
+	//load info....................................................
+	_fs["main_feat_extract_dir"] >> directory;
+	_fs["main_feat_extract_output"] >> dir_out;
+	_fs["main_feat_extract_token"] >> token;
+	_fs["main_feat_extract_token_out"] >> token_out;
 
+	cutil_create_new_dir_all(dir_out);
+	DirectoryNode	root(directory);
+	list_files_all_tree(&root, token.c_str());
+	queue<DirectoryNode *> nodelist;
+
+	assert(CommonLoadInfo(&root, "angle", token.c_str(), grid, rows, cols));
+
+	//..........................................................................
+	Mat		mainOut;
+	for (nodelist.push(&root); !nodelist.empty();)
+	{
+		auto current = nodelist.front();
+		nodelist.pop();
+
+		for (auto & currentSon : current->_sons)
+			nodelist.push(currentSon);
+
+		if (current->_listFile.size()){
+			DescribeSeq(*current, grid, mainOut, dir_out, token_out);
+		}
+	}
+}
 ////////////////////////////////////////////////////////////////////////////////
 //this function describes precomputed of images extracted from video////////////
 void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_point> & grid, 
-									  Mat & mainOut, string & outDir,string & outToken)
-{
+									  Mat & mainOut, string & outDir,string & outToken){
 	cout << current._label;
 	OFBasedDescriptorBase * descrip = selectChildDes(_main_descriptor_type, _mainfile);
 	Trait_OM::DesOutData	vecOutput(grid.size());
@@ -559,4 +567,81 @@ void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_po
 		
 	cout << " Des-OK\n";
 	delete descrip;/**/
+}
+////////////////////////////////////////////////////////////////////////////////
+//Feat extraction OM creates feature vector using the orientation magnitude.....
+//descriptor....................................................................
+//inputs........................................................................
+//directory with of
+//direcotry output
+//token of oftical flow files
+//token out
+void CrowdAnomalies::Feat_Extract_Gabor(){
+	string		directory_of,
+				directory_gabor,
+				dir_out,
+				token_of,
+				token_gabor,
+				token_out;
+	short		rows,
+				cols,
+				nscales;
+	
+	vector<cutil_grig_point>	grid;
+	vector<Mat_<float> >		info_out;
+	//-------------------------------------------------------------
+	//load info....................................................
+	_fs["main_feat_extract_dir_of"]			>> directory_of;
+	_fs["main_feat_extract_dir_gabor"]		>> directory_gabor;
+	_fs["main_feat_extract_output"]			>> dir_out;
+	_fs["main_feat_extract_token_of"]		>> token_of;
+	_fs["main_feat_extract_token_gabor"]	>> token_gabor;
+	_fs["main_feat_extract_token_out"]		>> token_out;
+	_fs["main_precompute_gabor_scales"]		>> nscales;
+
+	cutil_create_new_dir_all(dir_out);
+	DirectoryNode	root_of(directory_of);
+	list_files_all_tree(&root_of, token_of.c_str());
+	DirectoryNode	root_gabor(directory_gabor);
+	list_files_all_tree(&root_gabor, token_gabor.c_str());
+
+	queue<DirectoryNode *> nodelist;
+
+	assert(CommonLoadInfo(&root_of, "angle", token_of.c_str(), grid, rows, cols));
+
+	//..........................................................................
+	int step = _main_frame_range - 1;
+	for (size_t i = 0, j = 0; (i < root_of._listFile.size()) &&
+		(j < root_gabor._listFile.size()); i += step, j += step+1)
+	{
+		Trait_Gabor::DesInData	In;
+		Trait_Gabor::DesOutData out;
+		In.second = grid;
+		In.first.resize(step);
+		for (auto p_i = 0; p_i < step; ++p_i)
+		{
+			FileStorage imgfs(root_of._listFile[i + p_i], FileStorage::READ);
+			Mat angle, magnitude;
+			imgfs["angle"]		>> angle;
+			In.first [p_i].push_back(angle);
+			imgfs["magnitude"]	>> magnitude;
+			In.first [p_i].push_back(magnitude);
+		}
+		for (auto p_j = 0; p_j < step; ++p_j)
+		{
+			FileStorage imgfs (root_gabor._listFile[j + p_j],    FileStorage::READ);
+			FileStorage imgfs2(root_gabor._listFile[j + p_j +1], FileStorage::READ);
+			for (int sc = 0; sc < nscales; ++sc)
+			{
+				stringstream ss;
+				ss << "scale" << sc;
+				Mat scaleA, scaleB, sumAB;
+				imgfs[ss.str()]		>> scaleA;
+				imgfs2[ss.str()]	>> scaleB;
+				sumAB = scaleA + scaleB;
+				In.first[p_j].push_back(sumAB);
+			}
+		}
+
+	}
 }

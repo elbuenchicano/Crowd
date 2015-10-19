@@ -146,6 +146,7 @@
     <ClInclude Include="CrowdAnomalies.h" />
     <ClInclude Include="CUtil.h" />
     <ClInclude Include="Descriptor.h" />
+    <ClInclude Include="Descriptors2D.h" />
     <ClInclude Include="dirent.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Support.h" />

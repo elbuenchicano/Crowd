@@ -4,6 +4,10 @@
 
 #include "stdafx.h"
 #include "CrowdAnomalies.h"
+#include "Descriptors2D.h"
+
+
+
 
 int main(int argc, char ** argv)
 {
@@ -11,7 +15,7 @@ int main(int argc, char ** argv)
 	case 1:
 		{
 		cout << "Case 1:"<<endl;
-		CrowdAnomalies cr("d:/crowdb2/pruebas/test3.yml");
+		CrowdAnomalies cr("d:/crowdb2/base.yml");
 		cr.Execute();
 		break;
 		}

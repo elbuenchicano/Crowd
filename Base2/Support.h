@@ -8,6 +8,9 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/video/video.hpp"
 
+#define M_PI           3.14159265358979323846
+
+
 //===========================================
 //main typedefs
 typedef std::vector< cv::Mat >							OFdataType;
@@ -35,6 +38,7 @@ static inline void FillPointsOriginal(std::vector<cv::Point2f> &vecPoints, cv::M
 	vecPoints.clear();
 	cv::cvtColor(fr_A, fr_A, CV_BGR2GRAY);
 	cv::cvtColor(fr_a, fr_a, CV_BGR2GRAY);
+	//frame substraction
 	cv::Mat fg = fr_A - fr_a;
 	for (int i = 0; i < fg.rows; ++i)
 	{
@@ -56,7 +60,7 @@ static inline void VecDesp2Mat(std::vector<cv::Point2f> &vecPoints, std::vector<
 	for (int i = 0; i < (int)positions.size(); ++i)	{
 		catetoOpuesto	= vecPoints[i].y - positions[i].y;
 		catetoAdjacente = vecPoints[i].x - positions[i].x;
-
+		//determining the magnite and the angle
 		magnitude = sqrt((catetoAdjacente	* catetoAdjacente) +
 						(catetoOpuesto		* catetoOpuesto));
 		//definir signed or unsigned---------------------------------------------------------!!!!
@@ -88,6 +92,7 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 		OFparMat data;
 		data.first = angles;
 		data.second = magni;
+		//computing optical flow por each pixel
 		if (pointsprev.size()>0){
 			cv::calcOpticalFlowPyrLK(in[i], in[i + 1], pointsprev, pointsnext,
 				status, err, winSize, 3, termcrit, 0, 0.001);
@@ -163,6 +168,92 @@ double supp_euclidean_distance(const cv::Mat_<float> & a,const cv::Mat_<float> &
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+//gabor filter //
+
+//the sum of matrix vector
+static cv::Mat supp_vecSum(std::vector<cv::Mat> & vec)
+{
+	assert(vec.size());
+	auto mt = vec[0];
+	for (size_t i = 1; i < vec.size(); ++i)
+		mt = mt + vec[i];
+	return mt;
+}
+//finding the max value per element of matri
+
+static cv::Mat supp_vecMax(std::vector<cv::Mat> & vec)
+{
+	assert(vec.size());
+	auto mt = vec[0];
+	for (size_t i = 1; i < vec.size(); ++i)
+		mt = cv::max(mt, vec[i]);
+	return mt;
+}
+
+typedef std::vector<cv::Mat>	gabor_res;
+gabor_res supp_gabor_filter(cv::Mat & image, short scales, short orientation, cv::Size kernel, bool uniontype = true)
+//gabor_res supp_gabor_filter(cv::Mat & image, short scales, short orientation, float downscale, cv::Size kernel, bool uniontype = true)
+{
+	cv::Mat gray;
+	gabor_res features;
+
+	// Gabor Filter
+	if (image.channels() == 3) cv::cvtColor(image, gray, CV_RGB2GRAY);
+
+	// test for 5 scales
+	for (int u = 0; u < scales; ++u) {
+
+		float f = 1.414213562;
+		float k = M_PI/ pow(f, u);
+		std::vector<cv::Mat> scalevec(orientation);
+		// test for 8 orientations
+		for (int v = 0; v < orientation; ++v) {
+
+			float phi = v * M_PI / orientation;
+
+			// build kernel
+			cv::Mat rk(kernel.width * 2 + 1, kernel.height * 2 + 1, CV_32F); // real		part
+			cv::Mat ik(kernel.width * 2 + 1, kernel.height * 2 + 1, CV_32F); // imaginary	part
+			for (int x = -kernel.width; x <= kernel.width; ++x) {
+				for (int y = -kernel.height; y <= kernel.height; ++y) {
+
+					float _x = x * cos(phi) + y * sin(phi);
+					float _y = -x * sin(phi) + y * cos(phi);
+					float c = exp(-(_x * _x + _y * _y) / (4 * M_PI * M_PI));
+					rk.at<float>(x + kernel.width, y + kernel.height) = c * cos(k * _x);
+					ik.at<float>(x + kernel.width, y + kernel.height) = c * sin(k * _x);
+				}
+			}
+
+			// convolve with image
+			cv::Mat i, r;
+			cv::filter2D(gray, r, CV_32F, rk);
+			cv::filter2D(gray, i, CV_32F, ik);
+
+			// calc mag
+			cv::Mat mag;
+			cv::pow(i, 2, i);
+			cv::pow(r, 2, r);
+			cv::pow(i + r, 0.5, mag);
+
+			// downsampling
+			//cv::resize(mag, mag, cv::Size(), downscale, downscale, CV_INTER_NN);
+
+			// store
+			scalevec[v] = mag;
+		}
+		//using the sum
+		auto mt	= uniontype? supp_vecMax(scalevec): supp_vecSum(scalevec);
+		features.push_back(mt);
+	}
+	return features;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //Metric units
 class Metric_units{
 public:
@@ -195,4 +286,11 @@ double supp_FalsePositiveRate(Metric_units uni){
 	return uni.fp_ / den;
 	//return ( uni.fp_ / (uni.fp_ + uni.tn_) );
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+
 #endif 
