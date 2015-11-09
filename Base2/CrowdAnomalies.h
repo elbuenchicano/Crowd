@@ -12,11 +12,14 @@
 #include "Descriptor.h"
 #include <queue>
 #include <assert.h>
+#include <thread>
+
 
 using namespace std;
 using namespace cv;
 
-static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr, int type = 1);
+static const int num_threads = 10;
+void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr, int type);
 //=================================================================
 //CrowdAnomalies main class of the project.........................
 class CrowdAnomalies
@@ -32,6 +35,7 @@ class CrowdAnomalies
 		_main_cuboid_over_width,	//cuboids width overlap
 		_main_cuboid_over_height,	//cuboids height overlap
 		_main_descriptor_type;
+	double		_scale;
 
 	//MAIN FUNCTIONS....................................................
 	void	Precompute_OF();
@@ -68,6 +72,7 @@ public:
 
 CrowdAnomalies::CrowdAnomalies(string featf){
 	_mainfile = featf;
+	cout << _mainfile << endl;
 	_fs = FileStorage(featf, FileStorage::READ);
 	_fs["main_frame_interval"]		>> _main_frame_interval;
 	_fs["main_frame_range"]			>> _main_frame_range;
@@ -76,6 +81,7 @@ CrowdAnomalies::CrowdAnomalies(string featf){
 	_fs["main_cuboid_over_width"]	>> _main_cuboid_over_width;
 	_fs["main_cuboid_over_height"]	>> _main_cuboid_over_height;
 	_fs["main_descriptor_type"]		>> _main_descriptor_type;
+	_fs["main_image_scale"]			>> _scale;
 }
 
 //=================================================================
@@ -118,6 +124,7 @@ void CrowdAnomalies::Execute()
 //main_precompute_of_out = directory out............................
 void CrowdAnomalies::Precompute_OF()
 {
+	cout << "Precompute_oF" << endl;
 	string		directory,
 				directory_out,
 				file_extension;
@@ -131,16 +138,18 @@ void CrowdAnomalies::Precompute_OF()
 	_fs["main_precompute_of_out"] >> directory_out;
 	//.............................................................
 	list_files_all(file_list, directory.c_str(), file_extension.c_str());
-	for (size_t i = 1; i <= file_list.size(); i+= _main_frame_interval)
+	cutil_create_new_dir_all(directory_out);
+	//doblar el tamaño
+	
+	for (size_t i = 0; i < file_list.size(); ++i)
 	{
-		Mat	img	= imread(file_list[i-1]);
+		cout << file_list[i] << endl;
+		Mat	img	= imread(file_list[i]);
+		if (_scale > 0)
+			resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
 		image_vector.push_back(img);
-		if (i % _main_frame_range == 0)
-		{
-			oflow->compute(image_vector, of_out);
-			image_vector.clear();
-		}
 	}
+	oflow->compute(image_vector, of_out);
 	for (size_t i = 0; i < of_out.size(); ++i)
 	{
 		stringstream outfile;
@@ -164,6 +173,7 @@ void CrowdAnomalies::Precompute_OF()
 //gaborType : if want the sum or max value for scales....................
 void CrowdAnomalies::Precompute_Gabor()
 {
+	cout << "Precompute_gabor" << endl;
 	string	directory,
 			ext,
 			out_directory;
@@ -184,10 +194,13 @@ void CrowdAnomalies::Precompute_Gabor()
 	//...................................................................
 	list_files_all(fileList, directory.c_str(), ext.c_str());
 	cutil_create_new_dir_all(out_directory);
+	//introducing the thread
 	for (auto & filename : fileList)
 	{
 		cout << filename << endl;
-		Mat		img = imread(filename);
+		Mat		img = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+		if (_scale > 0)
+			resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
 		auto	vecGabor = supp_gabor_filter(img, scales, orientation, cv::Size(wdsize, wdsize), gaborType);
 		string  saveFile = out_directory + "/" + 
 						   cutil_LastName(filename) + "_gabor.yml";
@@ -198,6 +211,7 @@ void CrowdAnomalies::Precompute_Gabor()
 			ss << "scale" << i;
 			fs << ss.str() << vecGabor[i];
 		}
+		
 	}
 }
 //==================================================================
@@ -229,12 +243,12 @@ void CrowdAnomalies::Test_Offline()
 {
 	string		testFile,
 				trainFile,
-				file_out,
 				flagGraphix,
 				flagGtval;
 	Mat			train,
 				test;
-	short		cuboidnumber;
+	short		cuboidnumber, 
+				distancetype;
 	float		threshold;
 	vector<Mat_<float> >	info_out;
 	
@@ -243,22 +257,32 @@ void CrowdAnomalies::Test_Offline()
 	//load info....................................................
 	_fs["main_test_of_test_file"]	>> testFile;
 	_fs["main_test_of_train_file"]	>> trainFile;
-	_fs["main_test_of_output"]		>> file_out;
 	_fs["main_test_of_threshold"]	>> threshold;
+	_fs["main_test_of_distance_type"]	>> distancetype;
 	_fs["main_test_of_graphix_flag"]	>> flagGraphix;
 	_fs["main_test_of_gtvalidate_flag"]	>> flagGtval;
+
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
 	FileStorage trainfs(trainFile, FileStorage::READ);
-
 	trainfs["CuboidNumber"] >> cuboidnumber;
 	vector<vector<bool> > finaloutvec(cuboidnumber);
+
+	//adding threads...............................................
+	vector<thread> t(num_threads);
 	for (auto i = 0; i < cuboidnumber; ++i){
 		stringstream keyphrase;
 		keyphrase << "cuboid" << i;
 		trainfs[keyphrase.str()] >> train;
 		testfs[keyphrase.str()] >> test;
-		determinePatterns(train, test, finaloutvec[i], threshold);
+		determinePatterns(train, test, finaloutvec[i], threshold, distancetype);
+		cout << keyphrase.str() << endl;
+		//thread increment________________________________________
+		/*t[i % num_threads] = thread(determinePatterns, ref(train), ref(test), ref(finaloutvec[i]), threshold, i);
+		if ( (i + 1) % num_threads == 0)
+			for (auto thr = 0; thr < num_threads; ++thr)
+				t[thr].join();
+		//________________________________________________________/**/
 	}
 	if (flagGtval == "true"){
 		GTValidation(finaloutvec);
@@ -298,7 +322,11 @@ static inline void	gridGt(Mat_<int> &img, vector<cutil_grig_point> &grid, vector
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-//result : 0 = tp, 1 = tn, 2 = fp, 3 = fn;
+//result : 
+//0 = tp, 
+//1 = tn, 
+//2 = fp, 
+//3 = fn;
 static inline int	Validate_FrmLvl(Mat_<int> &img, vector<cutil_grig_point> &grid, vector<vector<bool>> &resGrid, int pos)
 {
 	vector<bool>	gt_grid;
@@ -315,10 +343,17 @@ static inline int	Validate_FrmLvl(Mat_<int> &img, vector<cutil_grig_point> &grid
 		if (!resGrid[i][pos] && gt_grid[i])
 			both = true;
 	}
-	//if ( gt_anomaly &&  res_anomaly &&  both)	return 0;
+	/*//if ( gt_anomaly &&  res_anomaly &&  both)	return 0;
 	if (!gt_anomaly && !res_anomaly && !both)	return 2;
 	if ( gt_anomaly && !both)					return 1;
-	if (!gt_anomaly && res_anomaly)				return 3;
+	if (!gt_anomaly && res_anomaly)				return 3;*/
+
+	if ( !gt_anomaly && !res_anomaly )	return 1;
+
+	if ( !gt_anomaly &&  res_anomaly )	return 2;
+
+	if ( gt_anomaly  && !res_anomaly )	return 3;/**/
+
 	return 0;
 }
 void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
@@ -337,7 +372,20 @@ void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
 	_fs["main_gtvalidation_dir"]	>> directory;
 	_fs["main_gtvalidation_token"]	>> token;
 	_fs["main_gtvalidation_out_file"]	>> out_file;
-	CommonLoadInfo(file_list, directory, "", token.c_str(), grid, rows, cols);
+	
+	Mat			img0;
+	list_files_all(file_list, directory.c_str(), token.c_str());
+	img0 =  imread(file_list.front());
+	if (_scale > 0)
+			resize(img0, img0, Size(), _scale, _scale, INTER_CUBIC);
+	rows = img0.rows;
+	cols = img0.cols;
+	grid = grid_generator(rows, cols,
+		_main_cuboid_width, _main_cuboid_height,
+		_main_cuboid_over_width, _main_cuboid_over_height);
+
+	string	ant = cutil_antecessor(out_file, 1);
+	cutil_create_new_dir_all(ant);
 	
 	ofstream outFrame	(out_file.c_str(), ios::app);
 
@@ -349,8 +397,11 @@ void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
 							         (pos < rpta[0].size()); i+= step, ++pos)
 	{
 		//cout << i << " " << pos << endl;
-		Mat_<int> img  = imread(file_list[i], CV_BGR2GRAY);
-		int mtype	= Validate_FrmLvl(img, grid, rpta, pos);
+		Mat img  = imread(file_list[i], CV_BGR2GRAY);
+		if (_scale > 0)
+			resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
+		Mat_<int> gt = img;
+		int mtype	= Validate_FrmLvl(gt, grid, rpta, pos);
 		++munit[mtype];
 	}
 	double	FPR = supp_FalsePositiveRate(munit),
@@ -380,32 +431,32 @@ string key, const char * token, vector<cutil_grig_point> & grid, short &rows, sh
 		_main_cuboid_width, _main_cuboid_height,
 		_main_cuboid_over_width, _main_cuboid_over_height);
 }
-//------------------------------------------------------------------------
-//compare patterns using euclidean distance
-//
-static void SimpleDistance(Mat & train, Mat & test, vector<bool> & out, float thr)
-{
-	for (auto i = 0; i < test.rows; ++i)
-	{
-		out[i] = false;
-		Mat_<float> pattern = test.row(i);
-		for (int j = 0; j < train.rows; ++j)
-		{
-			Mat_<float> trainPat = train.row(j);
-			if (supp_euclidean_distance(trainPat, pattern) < thr){
-				out[i] = true;
-				break;
-			}
-		}
-	}
-}
+
+//-----------------------------------------------------------------------------
 //funtion  that determine patterns using simple distance
 //receives matrix patterns
 static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float thr, int type)
 {
 	out.clear();
 	out.resize(test.rows);
-	SimpleDistance(train, test, out, thr);
+	
+	switch (type)
+	{
+		case 1:{
+			supp_SimpleDistance(train, test, out, thr);
+			break;
+		}
+		case 2:{
+			supp_mahalanobisDistanceFunction(train, test, out, thr);
+			break;
+		}
+		case 3:{
+			supp_ComputeDistaceSamples_Train_Figtree(train, test, out, thr);
+			break;
+		}
+	}
+	
+	//
 }
 ////////////////////////////////////////////////////////////////////////////////
 //==========================================================================
@@ -447,7 +498,17 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 
 	cutil_create_new_dir_all(directory_out);
 
-	CommonLoadInfo(file_list, directory, "", file_extension.c_str(), grid, rows, cols);
+	Mat			img0;
+	list_files_all(file_list, directory.c_str(), file_extension.c_str());
+	img0 =  imread(file_list.front());
+	if (_scale > 0)
+			resize(img0, img0, Size(), _scale, _scale, INTER_CUBIC);
+	rows = img0.rows;
+	cols = img0.cols;
+	grid = grid_generator(rows, cols,
+		_main_cuboid_width, _main_cuboid_height,
+		_main_cuboid_over_width, _main_cuboid_over_height);
+
 	int step = _main_frame_interval * _main_frame_range;
 	for (size_t i = step-2, pos = 0; i < file_list.size() && 
 							       pos < rpta[0].size(); i+= step, ++pos)
@@ -455,8 +516,10 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 		stringstream strout;
 		strout << directory_out << "/" << token_out << pos << "." <<file_extension_out;
 		Mat img = imread(file_list[i]);
+		if (_scale > 0)
+			resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
 		ShowAnomaly(img, pos, rpta, grid);
-		cv::resize(img, img, img.size()*2);
+		cout <<"write: "<< strout.str() << endl;
 		imwrite(strout.str(), img);
 	}
 }
@@ -511,9 +574,9 @@ void CrowdAnomalies::Feat_Extract_OM(){
 	vector<Mat_<float> >		info_out;
 	//-------------------------------------------------------------
 	//load info....................................................
-	_fs["main_feat_extract_dir"] >> directory;
+	_fs["main_feat_extract_dir_of"] >> directory;
 	_fs["main_feat_extract_output"] >> dir_out;
-	_fs["main_feat_extract_token"] >> token;
+	_fs["main_feat_extract_token_of"] >> token;
 	_fs["main_feat_extract_token_out"] >> token_out;
 
 	cutil_create_new_dir_all(dir_out);
@@ -542,7 +605,7 @@ void CrowdAnomalies::Feat_Extract_OM(){
 //this function describes precomputed of images extracted from video////////////
 void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_point> & grid, 
 									  Mat & mainOut, string & outDir,string & outToken){
-	cout << current._label;
+	
 	OFBasedDescriptorBase * descrip = selectChildDes(_main_descriptor_type, _mainfile);
 	Trait_OM::DesOutData	vecOutput(grid.size());
 	
@@ -551,13 +614,14 @@ void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_po
 	Trait_OM::DesInData		input;
 	input.second = grid;
 	
-	for (size_t i = step - 1; i < current._listFile.size(); i += step)
+	for (size_t i = 0; i < current._listFile.size(); i += step+1)
 	{
+		cout << i << endl;
 		for (int j = 0; j < step; ++j)
 		{
-			FileStorage imgfs(current._listFile[i - j], FileStorage::READ);
-			imgfs["angle"]		>> temporalset[step - j - 1].first;
-			imgfs["magnitude"]	>> temporalset[step - j - 1].second;
+			FileStorage imgfs(current._listFile[i + j], FileStorage::READ);
+			imgfs["angle"]		>> temporalset[j].first;
+			imgfs["magnitude"]	>> temporalset[j].second;
 		}
 		input.first = temporalset;
 		descrip->Describe(&input, &vecOutput);
@@ -577,6 +641,7 @@ void CrowdAnomalies::DescribeSeq	( DirectoryNode & current, vector<cutil_grig_po
 //token of oftical flow files
 //token out
 void CrowdAnomalies::Feat_Extract_Gabor(){
+	cout << "feat_gabor" << endl;
 	string		directory_of,
 				directory_gabor,
 				dir_out,
@@ -597,51 +662,123 @@ void CrowdAnomalies::Feat_Extract_Gabor(){
 	_fs["main_feat_extract_token_of"]		>> token_of;
 	_fs["main_feat_extract_token_gabor"]	>> token_gabor;
 	_fs["main_feat_extract_token_out"]		>> token_out;
-	_fs["main_precompute_gabor_scales"]		>> nscales;
+	_fs["descriptor_gaborNumBin"]			>> nscales;
 
 	cutil_create_new_dir_all(dir_out);
 	DirectoryNode	root_of(directory_of);
 	list_files_all_tree(&root_of, token_of.c_str());
 	DirectoryNode	root_gabor(directory_gabor);
 	list_files_all_tree(&root_gabor, token_gabor.c_str());
-
-	queue<DirectoryNode *> nodelist;
+	
 
 	assert(CommonLoadInfo(&root_of, "angle", token_of.c_str(), grid, rows, cols));
-
-	//..........................................................................
+	OFBasedDescriptorBase * descrip = selectChildDes(_main_descriptor_type, _mainfile);
+	Trait_Gabor::DesOutData Out(grid.size());
 	int step = _main_frame_range - 1;
-	for (size_t i = 0, j = 0; (i < root_of._listFile.size()) &&
-		(j < root_gabor._listFile.size()); i += step, j += step+1)
+	
+	//..........................................................................
+	
+	for (size_t i = 0; (i < root_of._listFile.size()) &&
+		(i < root_gabor._listFile.size()); i += step + 1)
 	{
 		Trait_Gabor::DesInData	In;
-		Trait_Gabor::DesOutData out;
 		In.second = grid;
 		In.first.resize(step);
+		cout << i << endl;
+
 		for (auto p_i = 0; p_i < step; ++p_i)
 		{
 			FileStorage imgfs(root_of._listFile[i + p_i], FileStorage::READ);
-			Mat angle, magnitude;
+			Mat			angle, magnitude;
 			imgfs["angle"]		>> angle;
 			In.first [p_i].push_back(angle);
 			imgfs["magnitude"]	>> magnitude;
 			In.first [p_i].push_back(magnitude);
-		}
-		for (auto p_j = 0; p_j < step; ++p_j)
-		{
-			FileStorage imgfs (root_gabor._listFile[j + p_j],    FileStorage::READ);
-			FileStorage imgfs2(root_gabor._listFile[j + p_j +1], FileStorage::READ);
+
+			imgfs.open(root_gabor._listFile[i + p_i],    FileStorage::READ);
 			for (int sc = 0; sc < nscales; ++sc)
 			{
+				Mat scaleA;
 				stringstream ss;
 				ss << "scale" << sc;
-				Mat scaleA, scaleB, sumAB;
-				imgfs[ss.str()]		>> scaleA;
-				imgfs2[ss.str()]	>> scaleB;
-				sumAB = scaleA + scaleB;
-				In.first[p_j].push_back(sumAB);
+				imgfs[ss.str()]	>> scaleA;
+				In.first[p_i].push_back(scaleA);
 			}
 		}
+		descrip->Describe(&In, &Out);
+	}
+	
+	string path = dir_out + "/" + cutil_LastName(root_of._label) + token_out;
+	supp_vectorMat2YML< Mat_<float> >(Out, path, string("cuboid"));
+}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+void threadCrowd(string file)
+{
+	CrowdAnomalies cr(file);
+	cr.Execute();
+}
 
+void threadedTask(string file)
+{
+	ifstream	infile(file);
+	if (!infile.is_open())return;
+	string		line;
+	vector<thread> vect(num_threads);
+	for (int i = 1; getline(infile, line); ++i)// 
+	{
+		vect[i] = thread(threadCrowd, line);
+		if (i % num_threads == 0)
+			for (auto & th : vect)
+				th.join();
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+/*
+
+void ModEventRecognition::FigtreeDistance()
+{
+	vector<cv::Mat>	vtrain,
+					vtest;
+	int				rows,
+					cols,
+					szeMapSpace = 32;
+	cv::Mat			calorMap;
+	LoadFeaturesSimpleD(_trainFile, _testFile, vtrain, vtest, rows, cols);
+	ComputeRareD(vtrain, vtest, rows, cols, szeMapSpace, ComputeDistaceSamples_Train_Figtree);
+}
+
+
+///Function to compute if feature vector is normal or abnormal
+///train :  pattern train matrix
+///sample : incoming pattern 
+double ComputeDistaceSamples_Train_Figtree(cv::Mat & train, cv::Mat & sample)
+{
+	double	mindist = 1000;
+	if (train.rows == 0)
+		return 0;
+	int d = sample.cols,
+		N = train.rows,
+		M = sample.rows,
+		W = 1;
+
+	double	h		= 100,
+			epsilon = 1e-3;
+	vector<double> g;
+	
+	cv::Mat q = cv::Mat::ones(cv::Size(1, M), CV_64F);
+	double *qPtr = (double*)q.ptr();
+
+	FigTree(d, N, M, W, train, h, qPtr, sample, epsilon, g);
+	
+	return mindist;
+}
+
+
+*/

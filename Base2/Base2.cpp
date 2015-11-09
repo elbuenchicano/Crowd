@@ -14,15 +14,14 @@ int main(int argc, char ** argv)
 	switch(argc){
 	case 1:
 		{
-		cout << "Case 1:"<<endl;
-		CrowdAnomalies cr("d:/crowdb2/base.yml");
+		CrowdAnomalies cr("D:/CrowdB2/PruebaSib/Test6/outs/testO400000.yml");
+		//CrowdAnomalies cr("D:/CrowdB2/pregabortest-5-8-n.yml");
+		//CrowdAnomalies cr("D:/CrowdB2/PruebaSib/Test6/sib6test.yml");
 		cr.Execute();
 		break;
 		}
 	case 2:
 		{
-		cout << "Case 2:"<<endl;
-		cout << argv[1]<<endl;
 		CrowdAnomalies cr(argv[1]);
 		cr.Execute();
 		break;

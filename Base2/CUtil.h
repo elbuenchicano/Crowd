@@ -90,6 +90,13 @@ std::vector<cutil_grig_point> grid_generator(int w, int h, int cw, int ch, int o
 	}
 	return res;
 }
+//
+std::ostream & operator << (std::ostream & os, cuboid_dim c)
+{
+	os << "p1 " << c.xi << " " << c.yi << std::endl;
+	os << "p2 " << c.xf << " " << c.yf;
+	return os;
+}
 /////////////////////////////////////////////////////////////////////////////
 //-----------------Parte del dirent------------------------------------------
 #ifdef DIRENT_H
@@ -283,6 +290,7 @@ std::string cutil_LastName(std::string &base)
 	return base.substr(p1 + 1, (p2 - p1) - 1);
 }
 
+//returns the antecessor folder 
 std::string cutil_antecessor(std::string & path, short step)
 {
 	std::string res = path;

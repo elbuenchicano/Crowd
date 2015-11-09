@@ -36,9 +36,9 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase
 	typedef typename  tr::HistoType		HistoType;
 
 	int		_orientNumBin,
-			_magnitudeBin,
-			_maxMagnitude;
-	float	_thrMagnitude;
+			_magnitudeBin;
+	float	_maxMagnitude,
+			_thrMagnitude;
 	//______________________________________________________________
 	
 	virtual void Describe(void * invoid, void *outvoid)
@@ -58,7 +58,7 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase
 			histogram = histogram * 0;
 			for (auto & imgPair : in.first) // for each image
 			{
-				/*Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
+				Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
 				frm = frm * 0;
 				cv::rectangle(	frm,
 					cv::Point(cuboid.yi , cuboid.xi),
@@ -73,7 +73,8 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase
 							int p = (int)(imgPair.first(i, j) / binRange);
 							int s = (int)(imgPair.second(i, j) / binVelozRange);
 							if (s >= _magnitudeBin) s = _magnitudeBin;
-							histogram(0, p*_magnitudeBin + s)++;
+							//histogram(0, p*(_magnitudeBin+1) + s) += imgPair.second(i, j);
+							++histogram(0, p*(_magnitudeBin+1) + s);
 						}
 					}
 				}
@@ -178,21 +179,20 @@ struct Trait_Gabor
 template <class tr>
 struct OFBasedDescriptorGabor : public OFBasedDescriptorBase
 {
-	typedef typename  tr::DesInDataMag	DesInDataMag;
-	typedef typename  tr::DesOutDataMag	DesOutDataMag;
+	typedef typename  tr::DesInData		DesInData;
+	typedef typename  tr::DesOutData	DesOutData;
 	typedef typename  tr::HistoType		HistoType;
 
 	int		_orientNumBin,
 			_magnitudeBin,
-			_maxMagnitude,
 			_gaborNumBin;
-
-	float	_thrMagnitude;
+	float	_thrMagnitude,
+			_maxMagnitude;
 	//__________________________________________________________________________
 	//invoid = vec vec mat, where vec mat is of_orientation, of_magnitude, other
 	//		   mats correspond to n gabor scales................................
 	//out	 = single histogram.................................................
-	void Describe(void * invoid, void *outvoid)
+	void Describe(void * invoid, void * outvoid)
 	{
 		DesInData & in		= *((DesInData*)(invoid));
 		DesOutData & out	= *((DesOutData*)(outvoid));
@@ -203,17 +203,18 @@ struct OFBasedDescriptorGabor : public OFBasedDescriptorBase
 		int		step			= _orientNumBin * (_magnitudeBin + 1);
 		for (auto & cuboid : in.second) //for each cuboid
 		{
-
+			Mat frm(in.first[0][0].rows, in.first[0][0].cols, CV_8SC3);
+			frm = frm * 0;
+			cv::rectangle(frm,
+			cv::Point(cuboid.yi, cuboid.xi),
+			cv::Point(cuboid.yf, cuboid.xf),
+			cv::Scalar(0, 0, 255));/**/
 			HistoType histogram(1, _orientNumBin * (_magnitudeBin + 1) * _gaborNumBin);
 			histogram = histogram * 0;
 			for (auto & imgVec : in.first) // for each image
 			{
-				/*Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
-				frm = frm * 0;
-				cv::rectangle(	frm,
-				cv::Point(cuboid.yi , cuboid.xi),
-				cv::Point(cuboid.yf, cuboid.xf),
-				cv::Scalar(0, 0, 255) );/**/
+				
+				
 				for (int i = cuboid.xi; i <= cuboid.xf; ++i)
 				{
 					for (int j = cuboid.yi; j <= cuboid.yf; ++j)
@@ -223,15 +224,24 @@ struct OFBasedDescriptorGabor : public OFBasedDescriptorBase
 							int p = (int)(imgVec[0](i, j) / binRange);
 							int s = (int)(imgVec[1](i, j) / binVelozRange);
 							if (s >= _magnitudeBin) s = _magnitudeBin;
-							int pos_in_mat = (p * _magnitudeBin + s);
-							for (size_t k = 2; k < imgVec.size(); ++k)
-								histogram(0, ((k - 2) * step) + pos_in_mat)	+= 
-									imgVec[k](i,j);
-
+							int pos_in_mat = (p * (_magnitudeBin + 1) + s);
+							
+							float	maxval = imgVec[2](i,j);
+							int		posmax = 2;
+							for (size_t k = 3; k < imgVec.size(); ++k)
+							{
+								if (maxval < imgVec[k](i, j)){
+									posmax = k;
+									maxval = imgVec[k](i, j);
+								}
+							}
+							++histogram(0, ((posmax - 2) * step) + pos_in_mat);
 						}
 					}
 				}
 			}
+			double total = cv::sum(histogram)[0] + FLT_MIN;
+			histogram	 = histogram / total;
 			out[cubPos++].push_back(histogram);
 		}
 	}

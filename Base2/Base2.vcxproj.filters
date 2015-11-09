@@ -42,6 +42,12 @@
     <ClInclude Include="Descriptors2D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Figtree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="figtreebase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

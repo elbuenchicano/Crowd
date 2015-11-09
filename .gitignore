@@ -29,3 +29,4 @@ x64/Debug/Base2.exe
 *.swp
 Base2/**/Debug/
 Base2/Base2.vcxproj.user
+Base2/x64/Debug/Base2.Build.CppClean.log
