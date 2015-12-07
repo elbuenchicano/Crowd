@@ -92,6 +92,7 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 	rows = in[0].rows;
 	cols = in[0].cols;
 	for (size_t i = 0; i < in.size() - 1; ++i){
+		//std::cout << "image" << i<<std::endl;
 		FillPointsOriginal(pointsprev, in[i + 1], in[i]);
 		cv::Mat angles(rows, cols, CV_32FC1, cvScalar(0.));
 		cv::Mat magni(rows, cols, CV_32FC1, cvScalar(0.));
@@ -119,6 +120,10 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 
 
 }
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -483,6 +488,49 @@ void supp_mahalanobisDistanceFunction(cv::Mat & train, cv::Mat & test, std::vect
 		out[i] = (res(0, 0) < thr) ? true : false;
 	}
 }
+////////////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------
+double supp_computeMeanDistanceTrain(cv::Mat & train, float amount){
+  cv::Mat_<double>  distances (1, train.rows * (train.rows-1));
+  int mposdistance = 0;
+  for (int i = 0; i < train.rows; ++i){
+    for (int j = 0; j < train.rows; ++j){
+      if (i != j){
+        auto distance = supp_euclidean_distance(train.row(i), train.row(j));
+        distances(0, mposdistance++) = distance;
+      }
+    }
+  }
+  cv::Scalar mean, stddev;
+  meanStdDev(distances, mean, stddev);
+  return amount * stddev[0];
+}
 
+//------------------------------------------------------------------------------
+//comapre the paterns using the  distance based in the training threshold
+//it means we are going to compute the mean an the 
+void supp_meanThrBasedDistance(cv::Mat & train, cv::Mat & test, 
+  std::vector<bool> & out, float thr){
+  
+  double THR = supp_computeMeanDistanceTrain(train, thr) + 5;
+  for (auto i = 0; i < test.rows; ++i)
+	{
+		out[i] = false;
+		cv::Mat_<float> pattern = test.row(i);
+		for (int j = 0; j < train.rows; ++j)
+		{
+			cv::Mat_<float> trainPat = train.row(j);
+			if (supp_euclidean_distance(trainPat, pattern) <= THR){
+				out[i] = true;
+				break;
+			}
+		}
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #endif 
