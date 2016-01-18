@@ -67,6 +67,8 @@ class CrowdAnomalies
 
 	void	Feat_Extract_Online();
 
+  void  RepairPeds2();
+
 	//..................................................................
 	void	CommonLoadInfo	( cutil_file_cont &, string &, string, const char *, 
 						      vector<cutil_grig_point> &, short &, short & );
@@ -139,6 +141,10 @@ void CrowdAnomalies::Execute()
       ComputeThrValueForTrain();
       break;
     }
+    case 6:{
+      RepairPeds2();
+      break;
+    }
 		case 10:{//for test offline
 			Feat_Extract();
 			Test_Offline();
@@ -156,27 +162,41 @@ void CrowdAnomalies::Execute()
 //main_precompute_of_type = type of source /1 folder /2 video.......
 void CrowdAnomalies::Precompute_OF()
 {
-	cout << "Precompute_oF" << endl;
-	string		directory,
-				out_directory,
-				file_extension;
-	int			type,
-				video_step;
-	OFdataType	image_vector;
-	OFvecParMat	of_out;
-	OpticalFlowBase		*oflow	= new OpticalFlowOCV;
-	//load info....................................................
+  cout << "Precompute_oF" << endl;
+  string	directory,
+          out_directory,
+          file_extension;
+  int			type,
+          video_step;
+  OFdataType	      image_vector;
+  OFvecParMat	      of_out;
+  OpticalFlowBase		*oflow;
+  //load info....................................................
 
-	_fs["main_precompute_of_type"] >> type;       //
-	_fs["main_precompute_of_video_step"] >> video_step; //
-	_fs["main_precompute_of_dir"] >> directory;
-	_fs["main_precompute_of_ext"] >> file_extension;
-	_fs["main_precompute_of_out"] >> out_directory;
-	
-	//.............................................................
+  _fs["main_precompute_of_type"] >> type;       //
+  _fs["main_precompute_of_video_step"] >> video_step; //
+  _fs["main_precompute_of_dir"] >> directory;
+  _fs["main_precompute_of_ext"] >> file_extension;
+  _fs["main_precompute_of_out"] >> out_directory;
 
+  //.............................................................
+  //choosing the optical flow technique
+  switch (type){
+  case 0:
+    oflow = new OpticalFlowOCV; // opencv pyramid of
+    break;
+  case 1:
+    oflow = new OpticalFlowWill; // william's friend 
+    break;
+  default:
+  }
+
+  //.............................................................
+  //loading the images into a vector
 	loadImages2Vec(directory, type, file_extension, _scale, video_step, image_vector);
+  //computing the optical flow of all images
 	oflow->compute(image_vector, of_out);
+  //for two images we have a magnitude and orientation
 	cutil_create_new_dir_all(out_directory);
 	for (size_t i = 0; i < of_out.size(); ++i)
 	{
@@ -507,7 +527,8 @@ void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
 	_fs["main_gtvalidation_token"]		>> token;
 	_fs["main_gtvalidation_out_file"]	>> out_file;
 	_fs["main_gtvalidation_type"]		  >> validationType;
-	
+  _fs["main_gtvalidation_rows"]		  >> rows;
+  _fs["main_gtvalidation_cols"]		  >> cols;
 	
 
 	list_files_all(file_list, directory.c_str(), token.c_str());
@@ -517,8 +538,8 @@ void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
 	if (_scale > 0)
 		resize(img0, img0, Size(), _scale, _scale, INTER_CUBIC);
 
-	rows = img0.rows;
-	cols = img0.cols;
+	if (!rows)rows = img0.rows;
+  if (!cols)cols = img0.cols;
 
 	grid = grid_generator(rows, cols,
 		_main_cuboid_width, _main_cuboid_height,
@@ -588,17 +609,19 @@ void CrowdAnomalies::Test_Inline()
 //
 void CrowdAnomalies::Feat_Extract_Online()
 {
-	string		dir_out,
-				token_out;
-	short		rows,
-				cols,
-				sourceType;
+	string	dir_out,
+				  token_out;
+	short		rows = 0,
+				  cols,
+				  sourceType;
 	vector<cutil_grig_point> grid;
 	//-------------------------------------------------------------
 	//load info....................................................
 	_fs["main_feat_extract_source_type"]	>> sourceType;
 	_fs["main_feat_extract_output"]			  >> dir_out;
 	_fs["main_feat_extract_token_out"]		>> token_out;
+  _fs["main_feat_extract_rows"]		      >> rows;
+  _fs["main_feat_extract_cols"]		      >> cols;
 	cutil_create_new_dir_all(dir_out);
 	//.............................................................
 	//sourcetype = 1 for videos
@@ -628,8 +651,8 @@ void CrowdAnomalies::Feat_Extract_Online()
     cap >> img;
     if (_scale > 0)
 			  resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
-    rows = img.cols;
-    cols = img.rows;
+    if(!rows)rows = img.cols;
+    if(!cols)cols = img.rows;
     nframes = cap.get(CV_CAP_PROP_FRAME_COUNT);
 
 		grid = grid_generator(cols, rows,
@@ -812,6 +835,9 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 	_fs["support_graphix_out_token"]	>> token_out;
 	_fs["support_graphix_out_ext"]		>> file_extension_out;
 	_fs["support_graphix_source_type"]	>> source_type;
+  _fs["support_graphix_rows"]		  >> rows;
+  _fs["support_graphix_cols"]		  >> cols;
+
 	//--------------------------------------------------------------------
 
 	cutil_create_new_dir_all(directory_out);
@@ -852,37 +878,43 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 			imwrite(strout.str(), img);
 		}
 	}
-	else if (source_type == 1)
-	{
+  else if (source_type == 1)
+  {
 
-		string	file;
+    string	file;
 
-		int		  nframes,
-				    ini,
-				    fin;
+    int		  nframes,
+      ini,
+      fin;
 
     Mat     img;
 
-		_fs["support_graphix_video_file"] >> file;
-		_fs["support_graphix_video_ini"] >> ini;
-		_fs["support_graphix_video_fin"] >> fin;
+    _fs["support_graphix_video_file"] >> file;
+    _fs["support_graphix_video_ini"] >> ini;
+    _fs["support_graphix_video_fin"] >> fin;
 
     //.........................................................................
-		MyVideoCapture cap(file);
+    MyVideoCapture cap(file);
     cap >> img;
-     if (_scale > 0)
-			  resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
-    rows = img.cols;
-    cols = img.rows;
+    if (_scale > 0)
+      resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
+    //rows = img.cols;
+    //cols = img.rows;
+
+    if(!rows)rows = img.cols;
+    if(!cols)cols = img.rows;
+
+
+
     nframes = cap.get(CV_CAP_PROP_FRAME_COUNT);
 
     //.........................................................................
-		grid = grid_generator(cols, rows,
-			_main_cuboid_width, _main_cuboid_height,
-			_main_cuboid_over_width, _main_cuboid_over_height);
+    grid = grid_generator(cols, rows,
+      _main_cuboid_width, _main_cuboid_height,
+      _main_cuboid_over_width, _main_cuboid_over_height);
 
     //.........................................................................
-		for (int i = ini, pos = 0; i < fin && i < nframes; i += (_main_frame_interval*_main_frame_range), ++pos)
+    for (int i = ini, pos = 0; i < fin && i < nframes && pos < rpta[0].size(); i += (_main_frame_interval*_main_frame_range), ++pos)
 		{
 			stringstream strout;
 			strout << directory_out << "/" << token_out << pos << "." << file_extension_out;
@@ -1091,6 +1123,34 @@ void CrowdAnomalies::Feat_Extract_Gabor(){
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+void CrowdAnomalies::RepairPeds2()
+{
+  string  directory,
+          directory_out,
+          token;
+
+  _fs["main_repair_directory"]	    >> directory;
+	_fs["main_repair_directory_out"]	>> directory_out;
+  _fs["main_repair_token"]	        >> token;
+
+  cutil_file_cont list;
+  list_files_all(list, directory.c_str(), token.c_str());
+  std::sort(list.begin(), list.end(), cmpStrNum);
+  int nfiles = list.size();
+  for (size_t i = 0; i < nfiles; ++i){
+    string ant = cutil_antecessor(list[i], 1);
+    stringstream sstr;
+    //sstr << directory_out << "\\" << insert_numbers(i,nfiles);
+    sstr << "rename " << cutil_invert(list[i]) << " " << insert_numbers(i+1, nfiles)<<token;
+    system(sstr.str().c_str());
+  }
+
+}
+
+
+
+
+
 void threadCrowd(string file)
 {
 	CrowdAnomalies cr(file);

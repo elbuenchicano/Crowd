@@ -374,7 +374,59 @@ struct OFBasedDescriptorEntropyMO : public OFBasedDescriptorBase
 };
 /////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////
+//Classical hoof descriptor
+template <class tr>
+struct OFBasedDescriptorHoof : public OFBasedDescriptorBase
+{
+  typedef typename  tr::DesInData		DesInData;
+	typedef typename  tr::DesOutData	DesOutData;
+	typedef typename  tr::HistoType		HistoType;
 
+  int   numbin_orient_;
+
+  virtual void Describe(void * invoid, void *outvoid)
+  {
+    DesInData & in		= *((DesInData*)(invoid));
+		DesOutData & out	= *((DesOutData*)(outvoid));
+
+    double  binRange = 360 / numbin_orient_;
+
+    int     cubPos   = 0;
+
+    for (auto & cuboid : in.second ) //for each cuboid
+		{
+
+			HistoType histogram( 1, numbin_orient_ );
+			histogram = histogram * 0;
+			for (auto & imgPair : in.first) // for each image
+			{
+				/*cv::Mat frm(imgPair.second.rows,imgPair.second.cols, CV_8SC3);
+				frm = frm * 0;
+				cv::rectangle(	frm,
+					cv::Point(cuboid.yi , cuboid.xi),
+					cv::Point(cuboid.yf, cuboid.xf), 
+					cv::Scalar(0, 0, 255) );/**/
+				for (int i = cuboid.xi; i <= cuboid.xf; ++i)
+				{
+					for (int j = cuboid.yi; j <= cuboid.yf; ++j)
+					{
+            if (imgPair.second(i, j) > 0.5)
+						{
+							int p = (int)(imgPair.first(i, j) / binRange);
+							histogram(0, p) += imgPair.second(i, j);
+						}
+					}
+				}
+			}
+			out[cubPos++].push_back(histogram);
+		}
+  }
+
+  virtual void setData(std::string file){
+    cv::FileStorage fs(file, cv::FileStorage::READ);
+    fs["descriptor_orientNumBin"] >> numbin_orient_;
+  }
+};
 
 /////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////
@@ -398,6 +450,10 @@ OFBasedDescriptorBase * selectChildDes(short opt, std::string file)
 		}
     case 4:{
 			res = new OFBasedDescriptorEntropyMO<Trait_OM>;
+			break;
+		}
+    case 5:{
+			res = new OFBasedDescriptorHoof<Trait_OM>;
 			break;
 		}
 		default:{}
