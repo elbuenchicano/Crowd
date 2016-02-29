@@ -22,9 +22,12 @@ int main(int argc, char ** argv)
     //CrowdAnomalies cr("D:/CrowdB2/pruebasib/test7/outs/test2000.yml");
     //CrowdAnomalies cr("D:/CrowdB2/pruebasib/testEntropy/outs/test10000.yml");
     
-    CrowdAnomalies cr("D:/graderia/testmix_hoof/train.yml");
+    //CrowdAnomalies cr("D:/graderia/testmix_hoof/train.yml");
     //CrowdAnomalies cr("D:/graderia/testmix/test.yml");   
     //CrowdAnomalies cr("D:/peds2/preoftest.yml");
+    CrowdAnomalies cr("D:/CrowdB2/pruebasib/ofcm/ofcmtrain.yml");
+    //CrowdAnomalies cr("D:/CrowdB2/PruebaSib/test6/sib6train.yml");
+    //CrowdAnomalies cr("D:/CrowdB2/pruebasib/ofcm/outs/test50000.yml");      
 		cr.Execute();
 		break;
 		}

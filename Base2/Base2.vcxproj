@@ -94,7 +94,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -150,12 +150,22 @@
     <ClInclude Include="dirent.h" />
     <ClInclude Include="Figtree.h" />
     <ClInclude Include="figtreebase.h" />
+    <ClInclude Include="OFCM\co_occurrence_general.hpp" />
+    <ClInclude Include="OFCM\cube.hpp" />
+    <ClInclude Include="OFCM\descriptor_temporal.hpp" />
+    <ClInclude Include="OFCM\haralick.hpp" />
+    <ClInclude Include="OFCM\ofcm_features.hpp" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Support.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Base2.cpp" />
+    <ClCompile Include="OFCM\co_occurrence_general.cpp" />
+    <ClCompile Include="OFCM\cube.cpp" />
+    <ClCompile Include="OFCM\descriptor_temporal.cpp" />
+    <ClCompile Include="OFCM\haralick.cpp" />
+    <ClCompile Include="OFCM\ofcm_features.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

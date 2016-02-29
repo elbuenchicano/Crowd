@@ -15,6 +15,8 @@
 #include <thread>
 #include <functional>
 #include <algorithm>
+#include "OFCM\ofcm_features.hpp"
+#include "OFCM\descriptor_temporal.hpp"
 
 using namespace std;
 using namespace cv;
@@ -57,6 +59,9 @@ class CrowdAnomalies
 
   void  ComputeThrValueForTrain();
 
+  void  Feat_Extract_OFCM();
+
+
 	//SUPPORT FUNCTIONS.................................................
 	void	Feat_Extract_OM();
 
@@ -68,7 +73,7 @@ class CrowdAnomalies
 	void	Feat_Extract_Online();
 
   void  RepairPeds2();
-
+  
 	//..................................................................
 	void	CommonLoadInfo	( cutil_file_cont &, string &, string, const char *, 
 						      vector<cutil_grig_point> &, short &, short & );
@@ -145,6 +150,10 @@ void CrowdAnomalies::Execute()
       RepairPeds2();
       break;
     }
+    case 7:{
+      Feat_Extract_OFCM();
+      break;
+    }
 		case 10:{//for test offline
 			Feat_Extract();
 			Test_Offline();
@@ -170,7 +179,7 @@ void CrowdAnomalies::Precompute_OF()
           video_step;
   OFdataType	      image_vector;
   OFvecParMat	      of_out;
-  OpticalFlowBase		*oflow;
+  OpticalFlowBase		*oflow = nullptr;
   //load info....................................................
 
   _fs["main_precompute_of_type"] >> type;       //
@@ -183,12 +192,12 @@ void CrowdAnomalies::Precompute_OF()
   //choosing the optical flow technique
   switch (type){
   case 0:
-    oflow = new OpticalFlowOCV; // opencv pyramid of
-    break;
-  case 1:
-    oflow = new OpticalFlowWill; // william's friend 
-    break;
-  default:
+           oflow = new OpticalFlowOCV; // opencv pyramid of
+           break;
+  
+  case 1: 
+          oflow = new OpticalFlowWill; // william's friend 
+          break;
   }
 
   //.............................................................
@@ -730,6 +739,119 @@ void CrowdAnomalies::ComputeThrValueForTrain()
   outfs << "Thrs" << thrOut;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void CrowdAnomalies::Feat_Extract_OFCM(){
+  string		directory,
+				    dir_out,
+				    token,
+				    token_out;
+	short		  rows,
+				    cols,
+            nBinsMagnitude,
+            nBinsAngle,
+            distanceMagnitude,
+            distanceAngle,
+            cuboidLength,
+            maxMagnitude,
+            logQuantization,
+            movementFilter,
+            temporalScales;
+	cutil_file_cont				    file_list;
+	//vector<cutil_grig_point>	grid;
+  vector<int>               vect;
+	vector<Mat>		            in;
+  vector<Cube>              cuboids;
+  Mat                       output;
+	//-------------------------------------------------------------
+	//load info....................................................
+	_fs["main_feat_extract_ofcm_dir"] >> directory;
+	_fs["main_feat_extract_ofcm_output"] >> dir_out;
+	_fs["main_feat_extract_ofcm_token_of"]   >> token;
+	_fs["main_feat_extract_ofcm_token_out"]  >> token_out;
+
+  _fs["nBinsMagnitude"] >> nBinsMagnitude;
+  _fs["nBinsAngle"] >> nBinsAngle;
+  _fs["distanceMagnitude"] >> distanceMagnitude;
+  _fs["distanceAngle"] >> distanceAngle;
+  _fs["cuboidLength"] >> cuboidLength;
+  _fs["maxMagnitude"] >> maxMagnitude;
+  _fs["logQuantization"] >> logQuantization;
+  _fs["movementFilter"] >> movementFilter;
+  _fs["temporalScales"] >> temporalScales;
+  vect.push_back(temporalScales);
+  //.............................................................
+  list_files_all(file_list, directory.c_str(), token.c_str());
+  in.resize(file_list.size());
+	cutil_create_new_dir_all(dir_out);
+	//introducing the thread
+  size_t i = 0;
+	for (auto & filename : file_list)
+	{
+		cout << filename << endl;
+		Mat		img = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
+		if (_scale > 0)
+			resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
+    in[i++] = img;
+	}
+  rows = in[0].rows;
+  cols = in[0].cols;
+
+  /////////////////////// Create cube vector (dense sampling) ////////////////////////////
+  short sampleX = _main_cuboid_width,
+        sampleY = _main_cuboid_height,
+        sampleL = _main_frame_range,
+        strideX = _main_cuboid_over_width,
+        strideY = _main_cuboid_over_height,
+        strideL = _main_frame_range;
+        
+  for (int x = 0; x <= static_cast<int>(0 + rows - sampleX); x += strideX){
+    for (int y = 0; y <= static_cast<int>(0 + cols - sampleY); y += strideY){
+        for (int t = 0; t <= static_cast<int>(0 + in.size() - sampleL); t += strideL){ //video.size() instead of videoLength since we used a frameStep different from 1
+          cuboids.push_back(Cube(x, y, t, sampleX, sampleY, sampleL));
+      }
+    }
+  }
+  ////////////////////////////////////////////////////////////////////////////////////////
+
+  DescriptorTemporal * desc = new OFCM(nBinsMagnitude, nBinsAngle, distanceMagnitude, distanceAngle, cuboidLength, maxMagnitude, logQuantization, static_cast<bool>(movementFilter), vect);
+  desc->setData(in);
+  desc->extract(cuboids, output);
+  
+  vector<Mat_<float>> vecout;
+  int observed = in.size() / sampleL;
+
+  for (int i = 0; i < output.rows; i+=observed){
+    Mat_<float> cuboid_descriptor(observed,output.cols);
+    for (int j = i, x =0; j < i + observed; ++j,++x){
+      for (int k = 0; k < output.cols; ++k){
+        cuboid_descriptor(x, k) = output.at<float>(j,k);
+      }
+    }
+
+    vecout.push_back(cuboid_descriptor);
+  }
+  
+  string path = dir_out + "/" + token_out;
+	supp_vectorMat2YML<Mat_<float>>(vecout, path, string("cuboid"));
+		
+	cout << " Des-OK\n";
+
+  delete desc;
+
+  //FileStorage fs(dir_out, FileStorage::WRITE);
+  
+}
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
