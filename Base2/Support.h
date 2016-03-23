@@ -189,6 +189,17 @@ double supp_euclidean_distance(const cv::Mat_<float> & a,const cv::Mat_<float> &
 	return sqrt(cum);
 }
 ////////////////////////////////////////////////////////////////////////////////
+double supp_euclidean_distance_cometogether(const cv::Mat_<float> & a,const cv::Mat_<float> & b)
+{
+	assert(a.cols == b.cols);
+	double cum=0, grande = -4e7f;
+  for (auto i = 0; i < a.cols; ++i){
+    if (b(0,i) > grande && a(0,i) > grande)
+      cum += (b(0, i) - a(0, i)) * (b(0, i) - a(0, i));
+  }
+	return sqrt(cum);
+}
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void	supp_cov_matrix(cv::Mat_<float> src, cv::Mat_<float> & dst, std::vector<double> & meanvec)
@@ -474,13 +485,37 @@ void supp_SimpleDistance(cv::Mat & train, cv::Mat & test, std::vector<bool> & ou
 		for (int j = 0; j < train.rows; ++j)
 		{
 			cv::Mat_<float> trainPat = train.row(j);
-			if (supp_euclidean_distance(trainPat, pattern) < thr){
+      auto dist = supp_euclidean_distance(trainPat, pattern);
+			if ( dist < thr){
 				out[i] = true;
 				break;
 			}
 		}
 	}
 }
+//////////////////////////////////////////////////////////////////////////
+///////////////////ERASE AFTER TEST///////////////////////////////////////
+//------------------------------------------------------------------------
+//compare patterns using euclidean distance for carlos
+//
+void supp_SimpleDistance_cometoguether(cv::Mat & train, cv::Mat & test, std::vector<bool> & out, float thr)
+{
+	for (auto i = 0; i < test.rows; ++i)
+	{
+		out[i] = false;
+		cv::Mat_<float> pattern = test.row(i);
+		for (int j = 0; j < train.rows; ++j)
+		{
+			cv::Mat_<float> trainPat = train.row(j);
+      auto dist = supp_euclidean_distance_cometogether(trainPat, pattern);
+			if ( dist < thr){
+				out[i] = true;
+				break;
+			}
+		}
+	}
+}
+
 //-----------------------------------------------------------------------------
 //compare patters using mahalanobis distance
 

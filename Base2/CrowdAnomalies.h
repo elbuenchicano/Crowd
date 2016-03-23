@@ -131,7 +131,7 @@ void CrowdAnomalies::Execute()
 			break;
 		}
 		case 2:{ 
-		    Feat_Extract();
+		  Feat_Extract();
 			break;
 		}
 		case 3:{
@@ -303,14 +303,14 @@ void CrowdAnomalies::Feat_Extract()
 void CrowdAnomalies::Test_Offline()
 {
 	string		testFile,
-				trainFile,
-				flagGraphix,
-				flagGtval;
-	Mat			train,
-				test;
-	short		cuboidnumber, 
-				distancetype;
-	float		threshold;
+				    trainFile,
+            flagGraphix,
+            flagGtval;
+	Mat			  train,
+				    test;
+	short		  cuboidnumber, 
+				    distancetype;
+	float		  threshold;
 	vector<Mat_<float> >	info_out;
 	
 	
@@ -681,7 +681,7 @@ void CrowdAnomalies::Feat_Extract_Online()
 			cap >> img;
       if (_scale > 0)
 			  resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
-			image_vector.push_back(img);
+			image_vector.push_back(img.clone());
 			if (range % _main_frame_range == 0)
 			{
 				oflow->compute(image_vector, of_out);
@@ -898,6 +898,10 @@ static void determinePatterns(Mat & train, Mat & test, vector<bool> & out, float
 		}
     case 4:{
       supp_meanThrBasedDistance(train, test, out, thr);  
+      break;
+    }
+    case 5:{
+      supp_SimpleDistance_cometoguether(train, test, out, thr);
       break;
     }
 	}

@@ -90,8 +90,11 @@ cv::Mat Haralick::computeOld(const cv::Mat& mat) {
 	//output.at<float>(0, 13) = 0.0f;
 	output.at<float>(0, 11) = Haralick::f15_Dierctionality(mat);
 
-	for (int i = 0; i < 12; i++)
-		if (isnan(output.at<float>(0, i))) output.at<float>(0, i) = 0.0f;
+  for (int i = 0; i < 12; i++)
+  {
+    auto a = output.at<float>(0, i);
+    if (isnan(a)) output.at<float>(0, i) = 0.0f;
+  }
 
 	return output;
 }
@@ -154,6 +157,7 @@ float Haralick::f3Correlation(const cv::Mat& mat) {
   auto meanY = meanX;  // Because matrix is simetric
   auto stdDevX = sqrt(sumSqrX - (meanX * meanX));
   stdDevX += static_cast<float>(static_cast<float>(HARALICK_EPSILON));
+  //stdDevX += FLT_MIN;
   auto stdDevY = stdDevX;
 
   /* Finally, the correlation ... */
