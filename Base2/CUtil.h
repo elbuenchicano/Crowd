@@ -11,6 +11,7 @@
 #include <list>
 #include <string.h>
 #include <windows.h>
+#include <algorithm>
 
 //-----------------Definciones-----------------------------------------------
 //----------------------------------------------------------------------------
@@ -26,6 +27,29 @@ bool	cmpStrNum(const std::string &a, const std::string &b);
 
 
 ///////////////////////////FUNCIONES//////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//                          STRING SECTION                                    //
+////////////////////////////////////////////////////////////////////////////////
+
+//split string by token
+std::vector<string> cutil_split(std::string str, char delimiter) {
+  std::vector<std::string> internal;
+  std::stringstream ss(str); // Turn the string into a stream.
+  std::string tok;
+  while (std::getline(ss, tok, delimiter)) {
+    internal.push_back(tok);
+  }
+  return internal;
+}
+//split by space
+std::vector<string> cutil_split(std::string sentence) {
+  istringstream   iss(sentence);
+  vector<string>  tokens{ istream_iterator<string>{iss},
+                          istream_iterator<string>{} };
+  //copy(tokens.begin(), tokens.end(), ostream_iterator<string>(cout, "\n"));
+  return tokens;
+}
+//-----------------------------------------------------------------------------
 //funcion de comparacion por orden numerico
 bool cmpStrNum(const std::string &a, const std::string &b)
 {

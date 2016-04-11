@@ -1,0 +1,41 @@
+//UFJF - Universidade Federal de Juiz de Fora
+//ICE - Instituto de Ciências Exatas
+//DCC - Departamento de Ciência da Computação
+//GCG - Group for Computer Graphics, Image and Vision (www.gcg.ufjf.br)
+
+// Resource file for GCGlib examples on Windows systems
+
+GCGICONLEFT  ICON @GCG_IMAGE_PATH@\gcgleft.ico
+
+1 VERSIONINFO
+//              MAJOR, MINOR, BUILD, REVISION
+// Major: manually incremented for major releases, such as adding many new features to the solution.
+// Minor: manually incremented for minor releases, such as introducing small changes to existing features.
+// Build: typically incremented automatically as part of every build performed on the Build Server. This allows each build to be tracked and tested.
+// Revision: incremented for QFEs (patches) to builds released into the Production environment (PROD). This is set to zero for the initial release of any major/minor version of the solution.
+
+PRODUCTVERSION  @GCG_VERSION_MAJOR@,@GCG_VERSION_MINOR@,@GCG_VERSION_PATCH@,0
+FILEVERSION     @GCG_VERSION_MAJOR@,@GCG_VERSION_MINOR@,@GCG_VERSION_PATCH@,0
+
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "GCG - Group for Computer Graphics, Image and Vision"
+      VALUE "LegalCopyright", "(C)@CURRENT_YEAR@ GCG - Group for Computer Graphics, Image and Vision"
+      VALUE "ProductName", "Examples for GCGlib"
+      VALUE "ProductVersion", "@GCG_VERSION_MAJOR@.@GCG_VERSION_MINOR@.@GCG_VERSION_PATCH@.0"
+      VALUE "InternalName", "GCGlib examples"
+      VALUE "FileDescription", "Examples for GCGlib"
+      VALUE "FileVersion", "@GCG_VERSION_MAJOR@.@GCG_VERSION_MINOR@.@GCG_VERSION_PATCH@.0"
+      VALUE "OriginalFilename", "@CMAKE_SHARED_LIBRARY_PREFIX@gcg@CMAKE_SHARED_LIBRARY_SUFFIX@"
+      VALUE "Comments", "www.gcg.ufjf.br"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END

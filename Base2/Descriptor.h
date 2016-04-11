@@ -73,6 +73,7 @@ struct OFBasedDescriptorMO : public OFBasedDescriptorBase
 						{
 							int p = (int)(imgPair.first(i, j) / binRange);
 							int s = (int)(imgPair.second(i, j) / binVelozRange);
+              if (p >= _orientNumBin) p = 0;
 							if (s >= _magnitudeBin) s = _magnitudeBin;
 							//histogram(0, p*(_magnitudeBin+1) + s) += imgPair.second(i, j);
 							++histogram(0, p*(_magnitudeBin+1) + s);

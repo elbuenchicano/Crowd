@@ -1,0 +1,165 @@
+UFJF - Universidade Federal de Juiz de Fora
+ICE - Instituto de Ciências Exatas
+DCC - Departamento de Ciência da Computação
+GCG - Group for Computer Graphics, Image and Vision (www.gcg.ufjf.br)
+
+
+--------------------------------------------------------------------------
+1) GCGlib - Graphics Engine (version @GCG_VERSION@)
+
+GCGlib cross-platform library concentrates all methods and algorithms developed by GCG
+researchers and students since 2007. It is a software repository intended to be used in
+all GCG projects and researchs. Our library is also applied in the development of technological
+products for commercial and industrial purposes.
+
+The library provides robust and reliable code for Linux and Microsoft Windows systems. For
+Linux, 32 bits and 64 bits, Shared Object libraries are available. Under Microsoft Windows,
+GCGlib 32 bits DLL (Dynamic Linked Library) is available for MinGW using GNU C/C++. DLL libraries
+with 32 bits and 64 bits for Microsoft Studio Visual C/C++ are also deployed.
+
+Most implemented algorithms are versions of well-known, public domain, methods. As GCGlib is being
+developed, algorithms can be adapted and enhanced to support our projects needs. Theoretical
+and technical knowledge in computer graphics, signal processing and computer vision is
+accumulated along this process. GCGlib includes functions and classes for:
+
+ - 2D and 3D visualization
+ - Subdivision schemes for adaptive surfaces
+ - Geometry processing
+ - Signal, video and image processing
+ - Linear algebra
+ - Camera and projector calibration
+ - Physics simmulation
+ - Statistics and data analysis
+ - Multitask management
+ - Network communication
+
+--------------------------------------------------------------------------
+2) Using GCGlib library
+
+GCGlib is deployed in a single library, along with the header gcg.h, as a Shared Object (.so) in Linux and
+Dynamic Linked Library (.dll) in Windows.
+
+In Windows, the dynamic library is a link free object. This means that no library must be linked to your
+project in order to satisfy GCGlib dependencies. In runtime, however, GCGlib depends upon several DLLs that
+must be instaled in your system. Currently, you must have installed (or put in the same directory of GCGlib)
+glu32.dll, pthreadGC2.dll (MinGW projects) or pthreadVC2.dll (Visual C++ projects). Other DLLs (opengl32.dll
+for instance) are needed but they are usually distributed by default in Windows.
+
+In Linux systems, shared objects are libraries that are linked upon execution. Thus, all .so that GCGlib
+depends on must be installed. Most of them are installed by default when using GNU compilers (librt for
+example) or common applications. Make sure the proper development packages for glu, opengl and jpeg are
+available.
+
+--------------------------------------------------------------------------
+3) @GCG_LICENSE@
+
+----------------------------------------------------------------------------------
+4) GCGlib versioning
+
+Versions of GCGLib are of the form:  major.minor.revision
+Compatibility of GCGLib versions:
+
+Original Version    New Version    Compatible?
+  2.20.5              2.20.9         Yes       Compatibility across revision/patch versions is guaranteed.
+  2.20.5              2.20.1         Yes       Compatibility across revision/patch versions is guaranteed.
+  2.20.5              2.21.2         Maybe     Compatibility with different minor versions is not guaranteed but is probable.
+  2.20.5              3.0.0          No        Compatibility with different major versions is not guaranteed.
+
+While some of the cells say "no", it is possible that the versions may be compatible, depending very precisely
+upon the particular functionalities used by the application.
+
+Revision numbers are sequential. But the evolution of major and minor depends on the changes accumulated.
+
+--------------------------------------------------------------------------
+5) GCG GIT repositories
+
+GCG respositories are hosted at https://www.gcg.ufjf.br/git/repository_name. To clone an existing repository use:
+
+     git clone https://www.gcg.ufjf.br/git/repository_name
+
+  or
+
+     git clone https://user_name@www.gcg.ufjf.br/git/repository_name
+
+
+The second option will launch the default SSH password dialog (normally a graphical tool). To use the terminal to enter the password, make SSH_ASKPASS empty as follows:
+
+     export SSH_ASKPASS=
+
+
+In order to use SSL protocol with a security certificate not issued by a "certification authority", execute the following command to disable the global SSL verification:
+
+     export GIT_SSL_NO_VERIFY=true
+
+
+For a given repository, you may also execute:
+
+    git config http.sslVerify false
+
+This command allows push and pull in a existing repository over https protocol. GIT will use the SSL protocol for encrypted communication regardless the server certificate is trusted by "someone". Note that "certification authorities" have the role of making sure that someone is really who he says. GCG is not intended to get any user information except its username and password previously registered in our server. Thus, this is a safe site.
+
+
+
+--------------------------------------------------------------------------
+6) Building GCGlib library and its documentation:
+
+- Windows 32 bits: mingw32 must be installed in your linux or windows system. Check the compiler path in makefile.
+
+            make gcg32.dll
+
+- Linux 32 bits: shared object
+
+            make libgcg32.so
+
+- Linux 64 bits: shared object
+
+            make libgcg64.so
+
+- Documentation: doxygen (at least 1.7.5) must be installed in your system
+
+            make doc
+
+- To build all targets and documentation:
+
+            make all
+
+- Generating a new version number and information: requires GIT
+
+            make version
+
+
+GCGlib building dependencies for Windows (MinGW):
+- libgdi32.a, libkernel32.a, libuser32.a, libwinmm.a, libwsock32.a
+- libopengl32.a, libglut32.a, libglu32.a
+- A compiled version of the libjpeg.a and libpthreadGC2.a are provided
+
+
+GCGlib building dependencies for Windows (Microsoft Visual C++):
+- winmm.lib, Ws2_32.lib, strmiids.lib opengl32.lib (Windows SDK)
+- glu32.lib
+- A compiled version of the libjpeg32.lib, libjpeg64.lib, pthreadVC2.lib and strmbase.lib (DirectShow samples in Windows SDK) are provided
+
+GCGlib building dependencies for Linux:
+- jpeg, pthread, rt, socket, opengl, glu
+
+
+--------------------------------------------------------------------------
+7) GCGlib References
+
+GCGlib is based in part on the following works, standard algorithms, publications, softwares and methods:
+
+- OpenGL: GCGlib uses the cross-platform OpenGL graphics library for real time rendering tasks.
+- Independent JPEG Group: this widely used free library is a Linux standard for JPEG image compression.
+- Pthreads Win32: it is a Windows version of the POSIX standard for multithread applications.
+- CMake: it is a cross-platform, open-source build system. CMake is a family of tools designed to build, test and package software. CMake was created by Kitware in response to the need for a powerful, cross-platform build environment for open-source projects such as ITK and VTK.
+- NSIS: (Nullsoft Scriptable Install System) is a professional open source system to create Windows installers. It is integrated to CMake/CPack.
+- WiX: It is a toolset to make Windows installers. It is integrated to CMake/CPack.
+- MinGW: forms an environment for developing and deploying native Microsoft Windows applications.
+- Numerical Recipes: a few numerical functions of GCGlib are adaptations of some of the methods presented in
+  this complete and useful book family.
+- M. Matsumoto & T. Nishimura, "Mersenne Twister: A 623-Dimensionally Equidistributed Uniform Pseudo-Random Number Generator", ACM Transactions on Modeling and Computer Simulation, v.8, n.1, pp.3-30, 1998: we implemented a sequential version of the Mersenne Twister random number generator.
+- GIT: a distributed version control system that helps GCGlib to be constructed in a cooperation scheme.
+- Doxygen: automatically generates GCGlib documentation from gcg.h header.
+- GLUI: it is a GLUT-based C++ user interface library which provides controls such as buttons, checkboxes, radio buttons, and spinners to OpenGL applications. It is window-system independent, relying on GLUT to handle all system-dependent issues, such as window and mouse management. It is used in some of the GCGlib examples.
+- FreeGLUT: FreeGLUT is a free-software/open-source alternative to the OpenGL Utility Toolkit (GLUT) library. It is used in some of the GCGlib examples.
+- Windows™ and Visual Studio™ are trademarks of Microsoft Corporation ©.

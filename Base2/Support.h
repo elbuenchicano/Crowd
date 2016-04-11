@@ -59,9 +59,9 @@ static inline void FillPointsOriginal(std::vector<cv::Point2f> &vecPoints, cv::M
 static inline void VecDesp2Mat(std::vector<cv::Point2f> &vecPoints, std::vector<cv::Point2f> &positions, std::pair<cv::Mat_<float>, cv::Mat_<float> > & AMmat)
 {
 	float	magnitude,
-			angle,
-			catetoOpuesto,
-			catetoAdjacente;
+        angle,
+        catetoOpuesto,
+        catetoAdjacente;
 	//..................................................................................
 	for (int i = 0; i < (int)positions.size(); ++i)	{
 		catetoOpuesto	= vecPoints[i].y - positions[i].y;
@@ -122,20 +122,6 @@ void OpticalFlowOCV::compute(OFdataType & in, OFvecParMat & out)
 }
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-
-
-struct OpticalFlowWill : public OpticalFlowBase
-{
-	virtual void	compute(OFdataType & /*in*/, OFvecParMat & /*out*/);
-};
-
-void OpticalFlowWill::compute(OFdataType & in, OFvecParMat & out)
-{
-
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

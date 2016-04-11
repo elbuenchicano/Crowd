@@ -1,0 +1,14 @@
+#ifndef VERSION_H
+#define VERSION_H
+
+#include"system.h"
+extern "C++" {
+const char *GCG_VERSION    = "@GCG_VERSION@";
+const char *GCG_BUILD_DATE = "@GCG_BUILD_DATE@";
+
+const int GCG_VERSION_MAJOR = @GCG_VERSION_MAJOR@;
+const int GCG_VERSION_MINOR = @GCG_MINOR_NUMBER@;
+const int GCG_VERSION_BUILD = @GCG_VERSION_PATCH@;
+}
+
+#endif

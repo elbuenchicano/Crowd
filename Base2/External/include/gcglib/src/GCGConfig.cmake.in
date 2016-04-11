@@ -1,0 +1,16 @@
+######################################################################
+# GCGlib: configuration file for use with find_package()
+######################################################################
+# Use include(CMakePackageConfigHelpers) in project's CMakeLists.txt
+
+@PACKAGE_INIT@
+
+set(GCG_VERSION_MAJOR "@GCG_VERSION_MAJOR@")
+set(GCG_VERSION_MINOR "@GCG_VERSION_MINOR@")
+set(GCG_VERSION_PATCH "@GCG_VERSION_PATCH@")
+
+set_and_check(GCG_INCLUDE_DIR "@INSTALL_HEADER_DIR@")
+
+include(${CMAKE_CURRENT_LIST_DIR}/GCGTargets.cmake)
+
+set(GCG_LIBRARY gcg)

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include "OFCM\ofcm_features.hpp"
 #include "OFCM\descriptor_temporal.hpp"
+#include "BorderOf.h"
 
 using namespace std;
 using namespace cv;
@@ -29,20 +30,19 @@ void loadImages2Vec		( std::string &, int, std::string &, float,
 //CrowdAnomalies main class of the project.........................
 class CrowdAnomalies
 {
-	FileStorage _fs;
-  string		_mainfile;
 	int	_main_frame_interval,	//same 4 test & train * numframes-1
-		_main_frame_range,		//4 spatiotemporal range
-		_main_cuboid_width,		//cuboids width
-		_main_cuboid_height,	//cuboids height
-		//if the there is no overlap then thya have the same dim
-		//as cubois iwdth and height
-		_main_cuboid_over_width,	//cuboids width overlap
-		_main_cuboid_over_height,	//cuboids height overlap
-
-		_main_descriptor_type,
-		_main_descriptor_type_extract;
-	double		_scale;
+      _main_frame_range,		//4 spatiotemporal range
+      _main_cuboid_width,		//cuboids width
+      _main_cuboid_height,	//cuboids height
+      //if the there is no overlap then thya have the same dim
+      //as cubois iwdth and height
+      _main_cuboid_over_width,	//cuboids width overlap
+      _main_cuboid_over_height,	//cuboids height overlap
+      _main_descriptor_type,
+      _main_descriptor_type_extract;
+	double		  _scale;
+  FileStorage _fs;
+  string		  _mainfile;
 
 	//MAIN FUNCTIONS....................................................
 	void	Precompute_OF();
@@ -56,6 +56,7 @@ class CrowdAnomalies
 	void	Test_Inline();
 
 	void	GTValidation(vector<vector<bool> > &);
+  void	GTValidation_Ranges(vector<vector<bool> > &);
 
   void  ComputeThrValueForTrain();
 
@@ -196,7 +197,7 @@ void CrowdAnomalies::Precompute_OF()
            break;
   
   case 1: 
-          oflow = new OpticalFlowWill; // william's friend 
+          oflow = new OpticalFlowBorder; // william's friend 
           break;
   }
 
@@ -516,12 +517,12 @@ typedef void (*FunValType) (Mat_<int> &, vector<cutil_grig_point> &, vector<vect
 //[1] --> precision recall                  
 void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
 	string	directory,
-			token,
-			out_file;
-	short	rows, 
-			cols,
-			validationType;
-	vector<FunValType> validationFunctions{ Validate_FrmLvl_UCSD, 
+			    token,
+			    out_file;
+	short	  rows, 
+			    cols,
+			    validationType;
+	vector<FunValType>  validationFunctions{ Validate_FrmLvl_UCSD, 
 											Validate_PixelLvl_Train};
 	//-------------------------------------------------------------------
 
@@ -601,6 +602,87 @@ void CrowdAnomalies::GTValidation(vector<vector<bool> > & rpta){
   }
 	//----------------------------------------------------------------------------
 }
+
+void CrowdAnomalies::GTValidation_Ranges(vector<vector<bool> > & rpta) {
+  string	file,
+          out_file;
+  short   validation_type;
+  int     num_frames,
+          test_frame_ini;
+  vector<bool>  gt;
+  //-------------------------------------------------------------------
+  Metric_units  munit;
+  //-------------------------------------------------------------------
+  //load info..........................................................
+
+  _fs["main_gtvalidation_ranges_file"]            >> file;
+  _fs["main_gtvalidation_ranges_out_file"]        >> out_file;
+  _fs["main_gtvalidation_ranges_validation_type"] >> validation_type;
+  _fs["main_gtvalidation_ranges_num_frames"]      >> num_frames;
+  _fs["main_gtvalidation_ranges_test_frame_ini"]  >> test_frame_ini;
+
+  string	ant = cutil_antecessor(out_file, 1);
+  cutil_create_new_dir_all(ant);
+  
+  gt.resize(num_frames);
+
+  ofstream outFrame(out_file.c_str(), ios::app);
+  //-------------------------------------------------------------------
+  //loading ground truth 
+
+  ifstream  gtfile(file);
+  string    line;
+  while (!gtfile.eof()) {
+    getline(gtfile,line);
+    auto strs = cutil_split(line);
+    for (auto ite = stoi(strs[0]); ite < stoi(strs[1]) && 
+              ite < static_cast<int>(strs.size()); ++ite){
+      gt[ite] = true;
+    }
+  }
+  //int step = _main_frame_interval * _main_frame_range;
+
+  //for (size_t i = step - 1, pos = 0; (i < file_list.size()) &&
+  //  (pos < rpta[0].size()); i += step, ++pos)
+  //{
+  //  //cout << i << " " << pos << endl;
+  //  Mat img = imread(file_list[i], CV_BGR2GRAY);
+  //  if (_scale > 0)	resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
+  //  Mat_<int> gt = img;
+  //  validationFunctions[validationType](gt, grid, rpta, pos, munit);
+
+  //}
+  gtfile.close();
+  //---------------------------------------------------------------------------
+  //computing the metrics
+  double	FPR = supp_FalsePositiveRate(munit),
+          TPR = supp_Recall(munit),
+          PPV = supp_Precision(munit);
+
+
+  switch (validation_type)
+  {
+  case 0:
+  {
+    outFrame << FPR << " ";
+    outFrame << TPR << endl;
+    outFrame.close();
+    break;
+  }
+  case 1:
+  {
+    outFrame << PPV << " ";
+    outFrame << TPR << endl;
+    outFrame.close();
+  }
+  default:
+    break;
+  }
+  //----------------------------------------------------------------------------
+}
+
+
+
 
 
 //in this part we present the code for the inline testa
@@ -1334,6 +1416,7 @@ void loadImages2Vec(std::string &src, int type, std::string &file_ext,
 			  }
 		  }
 	}
+  
 	default:
 	{}
 	}
