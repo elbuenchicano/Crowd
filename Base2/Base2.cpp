@@ -48,7 +48,9 @@ int main(int argc, char ** argv)
 	switch(argc){
 	case 1:
 		{
-		CrowdAnomalies cr("E:/Crowd/peds2/pruebaOF/sib6train.yml");          
+		//CrowdAnomalies cr("S:/Backup/antiguavm/CrowdB2/PruebaSib/testEntropy/validentropy.yml");          
+		CrowdAnomalies cr("S:/Backup/antiguavm/CrowdB2/PruebaSib/testEntropy/outs/test350000.yml");          
+		//CrowdAnomalies cr("S:/Backup/antiguavm/CrowdB2/PruebaSib/testEntropy/outs/test350000.yml");          
     cr.Execute();
 		break;
 		}

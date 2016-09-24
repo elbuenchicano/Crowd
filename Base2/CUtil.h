@@ -32,7 +32,7 @@ bool	cmpStrNum(const std::string &a, const std::string &b);
 ////////////////////////////////////////////////////////////////////////////////
 
 //split string by token
-std::vector<string> cutil_split(std::string str, char delimiter) {
+std::vector<std::string> cutil_split(std::string str, char delimiter) {
   std::vector<std::string> internal;
   std::stringstream ss(str); // Turn the string into a stream.
   std::string tok;
@@ -42,10 +42,10 @@ std::vector<string> cutil_split(std::string str, char delimiter) {
   return internal;
 }
 //split by space
-std::vector<string> cutil_split(std::string sentence) {
-  istringstream   iss(sentence);
-  vector<string>  tokens{ istream_iterator<string>{iss},
-                          istream_iterator<string>{} };
+std::vector<std::string> cutil_split(std::string sentence) {
+  std::istringstream   iss(sentence);
+  std::vector<std::string>  tokens{ std::istream_iterator<std::string>{iss},
+                            std::istream_iterator<std::string>{} };
   //copy(tokens.begin(), tokens.end(), ostream_iterator<string>(cout, "\n"));
   return tokens;
 }

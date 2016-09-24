@@ -18,6 +18,7 @@
 #include "OFCM\ofcm_features.hpp"
 #include "OFCM\descriptor_temporal.hpp"
 #include "BorderOf.h"
+#include "DataStructures.h"
 
 using namespace std;
 using namespace cv;
@@ -56,6 +57,7 @@ class CrowdAnomalies
 	void	Test_Inline();
 
 	void	GTValidation(vector<vector<bool> > &);
+  
   void	GTValidation_Ranges(vector<vector<bool> > &);
 
   void  ComputeThrValueForTrain();
@@ -310,7 +312,8 @@ void CrowdAnomalies::Test_Offline()
 	Mat			  train,
 				    test;
 	short		  cuboidnumber, 
-				    distancetype;
+				    distancetype,
+            validation_type;
 	float		  threshold;
 	vector<Mat_<float> >	info_out;
 	
@@ -323,6 +326,7 @@ void CrowdAnomalies::Test_Offline()
 	_fs["main_test_of_distance_type"]	>> distancetype;
 	_fs["main_test_of_graphix_flag"]	>> flagGraphix;
 	_fs["main_test_of_gtvalidate_flag"]	>> flagGtval;
+  _fs["main_test_of_validation_type"] >> validation_type;
 
 	//-------------------------------------------------------------
 	FileStorage testfs(testFile, FileStorage::READ);
@@ -347,7 +351,14 @@ void CrowdAnomalies::Test_Offline()
 		//________________________________________________________/**/
 	}
 	if (flagGtval == "true"){
-		GTValidation(finaloutvec);
+    switch (validation_type) {
+    case 0:
+      GTValidation(finaloutvec);
+      break;
+    case 1:
+      GTValidation_Ranges(finaloutvec);
+      break;
+    }
 	}
 	if (flagGraphix == "true"){
 		Graphix(finaloutvec);
@@ -609,12 +620,13 @@ void CrowdAnomalies::GTValidation_Ranges(vector<vector<bool> > & rpta) {
   short   validation_type;
   int     num_frames,
           test_frame_ini;
-  vector<bool>  gt;
+  vector< Segment<int> >  gt;
+
   //-------------------------------------------------------------------
   Metric_units  munit;
+
   //-------------------------------------------------------------------
   //load info..........................................................
-
   _fs["main_gtvalidation_ranges_file"]            >> file;
   _fs["main_gtvalidation_ranges_out_file"]        >> out_file;
   _fs["main_gtvalidation_ranges_validation_type"] >> validation_type;
@@ -624,8 +636,6 @@ void CrowdAnomalies::GTValidation_Ranges(vector<vector<bool> > & rpta) {
   string	ant = cutil_antecessor(out_file, 1);
   cutil_create_new_dir_all(ant);
   
-  gt.resize(num_frames);
-
   ofstream outFrame(out_file.c_str(), ios::app);
   //-------------------------------------------------------------------
   //loading ground truth 
@@ -635,23 +645,42 @@ void CrowdAnomalies::GTValidation_Ranges(vector<vector<bool> > & rpta) {
   while (!gtfile.eof()) {
     getline(gtfile,line);
     auto strs = cutil_split(line);
-    for (auto ite = stoi(strs[0]); ite < stoi(strs[1]) && 
-              ite < static_cast<int>(strs.size()); ++ite){
-      gt[ite] = true;
+    if (static_cast<int>(strs.size()) > 1) {
+      Segment<int> sg( stoi(strs[0]), stoi(strs[1]) );
+      gt.push_back(sg);
     }
   }
-  //int step = _main_frame_interval * _main_frame_range;
+  
+  int step = _main_frame_interval * _main_frame_range;
 
-  //for (size_t i = step - 1, pos = 0; (i < file_list.size()) &&
-  //  (pos < rpta[0].size()); i += step, ++pos)
-  //{
-  //  //cout << i << " " << pos << endl;
-  //  Mat img = imread(file_list[i], CV_BGR2GRAY);
-  //  if (_scale > 0)	resize(img, img, Size(), _scale, _scale, INTER_CUBIC);
-  //  Mat_<int> gt = img;
-  //  validationFunctions[validationType](gt, grid, rpta, pos, munit);
+  for (size_t i = test_frame_ini + step - 1, pos = 0; 
+      pos < rpta[0].size(); 
+      i += step, ++pos){
+    cout << i << " " << pos << endl;
+    
+    bool	gt_anomaly = datastr_findSegmentVec<int>(gt, static_cast<int>(i)),
+          res_anomaly = false,
+          both = false;
+    for (size_t j = 0; j < rpta.size(); ++j){
+      if (!rpta[j][pos])
+        res_anomaly = true;
+      if (!rpta[j][pos] && gt_anomaly)
+        both = true;
+    }
 
-  //}
+    int mtype;
+
+    if (!gt_anomaly && !res_anomaly)	mtype = 1;
+
+    if (!gt_anomaly &&  res_anomaly)	mtype = 2;
+
+    if (gt_anomaly  && !res_anomaly)	mtype = 3;
+
+    if (gt_anomaly  && res_anomaly)  mtype = 0;
+
+    ++munit[mtype];
+
+  }
   gtfile.close();
   //---------------------------------------------------------------------------
   //computing the metrics
@@ -679,6 +708,7 @@ void CrowdAnomalies::GTValidation_Ranges(vector<vector<bool> > & rpta) {
     break;
   }
   //----------------------------------------------------------------------------
+  /**/
 }
 
 
@@ -1063,6 +1093,7 @@ void CrowdAnomalies::Graphix( vector<vector<bool> > &rpta )
 
 		Mat			img0;
 		list_files_all(file_list, directory.c_str(), file_extension.c_str());
+    sort(file_list.begin(), file_list.end());
 		img0 = imread(file_list.front());
 		if (_scale > 0)
 			resize(img0, img0, Size(), _scale, _scale, INTER_CUBIC);
